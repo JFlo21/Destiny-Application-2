@@ -46,7 +46,8 @@ const ARMOR_TYPES = {
 };
 
 /**
- * Plug category hashes for subclass elements
+ * Plug category identifiers for subclass elements.
+ * These can be used to further filter subclass-related items.
  */
 const SUBCLASS_PLUG_CATEGORIES = {
   ASPECTS: 'aspects',
@@ -149,7 +150,6 @@ async function getSubclassItems(client) {
   
   // Aspects have specific plug category identifiers
   const aspects = Object.values(items).filter(item => {
-    const displayName = item.displayProperties?.name?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
     return itemType.includes('aspect') || 
            (item.plug && item.plug.plugCategoryIdentifier?.includes('aspects'));

@@ -10,6 +10,8 @@ const {
   clearCache,
   ITEM_CATEGORIES
 } = require('../src/buildCrafting');
+const fetch = require('node-fetch');
+const AbortController = require('abort-controller');
 
 /**
  * Simple test runner
@@ -109,17 +111,16 @@ async function runIntegrationTests() {
   }
   
   // Check if we can reach the Bungie API with AbortController for timeout
-  const fetch = require('node-fetch');
-  const AbortController = require('abort-controller');
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 5000);
   
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
     await fetch('https://www.bungie.net', { method: 'HEAD', signal: controller.signal });
-    clearTimeout(timeoutId);
   } catch (error) {
     console.log('Skipping integration tests - cannot reach Bungie API (network unavailable)');
     return;
+  } finally {
+    clearTimeout(timeoutId);
   }
   
   const client = createBungieClient(apiKey);

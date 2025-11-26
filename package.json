@@ -1,0 +1,21 @@
+{
+  "name": "destiny-application-2",
+  "version": "1.0.0",
+  "description": "Destiny 2 build crafting data fetcher using the Bungie API",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "test": "node test/buildCrafting.test.js"
+  },
+  "keywords": [
+    "destiny2",
+    "bungie",
+    "api",
+    "build-crafting"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "node-fetch": "^2.7.0"
+  }
+}

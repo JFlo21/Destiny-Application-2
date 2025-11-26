@@ -17,16 +17,23 @@ A Node.js application that fetches build crafting data from the Bungie API for D
 npm install
 ```
 
+## Configuration
+
+You need to set your Bungie API key as an environment variable:
+
+```bash
+export BUNGIE_API_KEY=your_api_key_here
+```
+
+You can get an API key from [Bungie's Developer Portal](https://www.bungie.net/en/Application).
+
 ## Usage
 
 ### Running the Application
 
 ```bash
-# Using environment variable (recommended)
+# Set environment variable and run
 BUNGIE_API_KEY=your_api_key npm start
-
-# Or run directly with Node.js
-node index.js
 ```
 
 ### Using as a Module
@@ -83,8 +90,16 @@ async function example() {
 ## Running Tests
 
 ```bash
+# Unit tests (no API key required)
 npm test
+
+# Integration tests (API key required)
+BUNGIE_API_KEY=your_api_key npm test
 ```
+
+## Requirements
+
+- Node.js 14 or later (Node.js 18+ recommended)
 
 ## License
 

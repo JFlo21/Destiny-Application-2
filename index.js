@@ -5,12 +5,12 @@ const { getAllBuildCraftingData, getWeapons, getArmor, getArmorMods, getAspects,
  * Main function to demonstrate fetching build crafting data from Bungie API
  */
 async function main() {
-  // Get API key from environment variable or use provided key
-  const apiKey = process.env.BUNGIE_API_KEY || 'a01cfd7260124c5790fee6781f8bebaa';
+  // Get API key from environment variable
+  const apiKey = process.env.BUNGIE_API_KEY;
   
   if (!apiKey) {
     console.error('Error: BUNGIE_API_KEY environment variable is not set');
-    console.log('Usage: BUNGIE_API_KEY=your_api_key node index.js');
+    console.log('Usage: BUNGIE_API_KEY=your_api_key npm start');
     process.exit(1);
   }
   

@@ -101,17 +101,22 @@ test('ITEM_CATEGORIES has correct values', () => {
 async function runIntegrationTests() {
   console.log('\n=== Integration Tests ===\n');
   
-  const apiKey = process.env.BUNGIE_API_KEY || 'a01cfd7260124c5790fee6781f8bebaa';
+  const apiKey = process.env.BUNGIE_API_KEY;
   
   if (!apiKey) {
-    console.log('Skipping integration tests - no API key provided');
+    console.log('Skipping integration tests - BUNGIE_API_KEY environment variable not set');
     return;
   }
   
-  // Check if we can reach the Bungie API
+  // Check if we can reach the Bungie API with AbortController for timeout
   const fetch = require('node-fetch');
+  const AbortController = require('abort-controller');
+  
   try {
-    await fetch('https://www.bungie.net', { method: 'HEAD', timeout: 5000 });
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    await fetch('https://www.bungie.net', { method: 'HEAD', signal: controller.signal });
+    clearTimeout(timeoutId);
   } catch (error) {
     console.log('Skipping integration tests - cannot reach Bungie API (network unavailable)');
     return;

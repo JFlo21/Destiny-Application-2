@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "export": "node src/exportData.js",
     "test": "node test/buildCrafting.test.js"
   },
   "keywords": [

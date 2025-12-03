@@ -10,6 +10,7 @@
     "export:json": "node src/exportData.js ./data --json-only",
     "export:excel": "node src/exportData.js ./data --excel-only",
     "export:excel-master": "node src/exportData.js ./data --excel-master",
+    "export:google-sheets": "node src/exportData.js ./data --google-sheets",
     "export:all": "node src/exportData.js ./data --excel --excel-master",
     "test": "node test/buildCrafting.test.js && node test/csvExport.test.js"
   },
@@ -24,6 +25,7 @@
   "dependencies": {
     "abort-controller": "^3.0.0",
     "exceljs": "^4.4.0",
+    "googleapis": "^166.0.0",
     "json-2-csv": "^5.5.10",
     "node-fetch": "^2.7.0"
   }

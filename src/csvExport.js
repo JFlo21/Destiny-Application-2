@@ -9,7 +9,7 @@ const ARMOR_2_0_PLUG_SET_HASH = 4163334830;
 const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145;
 
 /**
- * Stat type hash to name mapping
+ * Stat type hash to name mapping (fallback for when stat definitions aren't available)
  * These are common Destiny 2 stat hashes
  */
 const STAT_HASHES = {
@@ -48,12 +48,39 @@ const STAT_HASHES = {
 };
 
 /**
+ * Resolve a stat hash to a human-readable name
+ * @param {string|number} statHash - The stat hash to resolve
+ * @param {object} statDefs - Optional stat definitions from DestinyStatDefinition
+ * @returns {string} - Human-readable stat name
+ */
+function resolveStatName(statHash, statDefs = null) {
+  const hashStr = String(statHash);
+  
+  // First try to use stat definitions if available
+  if (statDefs && statDefs[hashStr]) {
+    const statName = statDefs[hashStr].displayProperties?.name;
+    if (statName) {
+      return statName;
+    }
+  }
+  
+  // Fall back to hardcoded mapping
+  if (STAT_HASHES[hashStr]) {
+    return STAT_HASHES[hashStr];
+  }
+  
+  // Last resort: return hash with prefix
+  return `Stat_${hashStr}`;
+}
+
+/**
  * Transform item data to a more readable format for CSV
  * @param {object} item - Item data from Bungie API
  * @param {string} category - Category of item (weapons, armor, etc.)
+ * @param {object} statDefs - Optional stat definitions for resolving stat hashes
  * @returns {object} - Transformed item data
  */
-function transformItemForCSV(item, category) {
+function transformItemForCSV(item, category, statDefs = null) {
   const transformed = {
     hash: item.hash,
     name: item.displayProperties?.name || '',
@@ -84,7 +111,7 @@ function transformItemForCSV(item, category) {
     // Extract stats if available
     if (item.stats?.stats) {
       for (const [statHash, statData] of Object.entries(item.stats.stats)) {
-        const statName = STAT_HASHES[String(statHash)] || `Stat_${statHash}`;
+        const statName = resolveStatName(statHash, statDefs);
         transformed[statName] = statData.value || 0;
       }
     }
@@ -92,7 +119,7 @@ function transformItemForCSV(item, category) {
     // Extract investment stats if available (for weapons)
     if (item.investmentStats) {
       item.investmentStats.forEach(stat => {
-        const statName = STAT_HASHES[String(stat.statTypeHash)] || `Stat_${stat.statTypeHash}`;
+        const statName = resolveStatName(stat.statTypeHash, statDefs);
         if (!transformed[statName]) {
           transformed[statName] = stat.value || 0;
         }
@@ -138,7 +165,7 @@ function transformItemForCSV(item, category) {
     // Add investment stats for mods (stat bonuses they provide)
     if (item.investmentStats && item.investmentStats.length > 0) {
       const statBonuses = item.investmentStats.map(stat => {
-        const statName = STAT_HASHES[String(stat.statTypeHash)] || `Stat_${stat.statTypeHash}`;
+        const statName = resolveStatName(stat.statTypeHash, statDefs);
         return `${statName}: ${stat.value > 0 ? '+' : ''}${stat.value}`;
       }).join(', ');
       transformed.statBonuses = statBonuses;
@@ -150,7 +177,7 @@ function transformItemForCSV(item, category) {
     // Add investment stats for fragments (stat bonuses/penalties they provide)
     if (item.investmentStats && item.investmentStats.length > 0) {
       const statBonuses = item.investmentStats.map(stat => {
-        const statName = STAT_HASHES[String(stat.statTypeHash)] || `Stat_${stat.statTypeHash}`;
+        const statName = resolveStatName(stat.statTypeHash, statDefs);
         return `${statName}: ${stat.value > 0 ? '+' : ''}${stat.value}`;
       }).join(', ');
       transformed.statBonuses = statBonuses;
@@ -162,7 +189,7 @@ function transformItemForCSV(item, category) {
     // Add cooldown information if available
     if (item.investmentStats && item.investmentStats.length > 0) {
       const stats = item.investmentStats.map(stat => {
-        const statName = STAT_HASHES[String(stat.statTypeHash)] || `Stat_${stat.statTypeHash}`;
+        const statName = resolveStatName(stat.statTypeHash, statDefs);
         return `${statName}: ${stat.value}`;
       }).join(', ');
       transformed.stats = stats;
@@ -186,10 +213,11 @@ function transformItemForCSV(item, category) {
  * Transform array of items to CSV-friendly format
  * @param {object[]} items - Array of items
  * @param {string} category - Category name
+ * @param {object} statDefs - Optional stat definitions for resolving stat hashes
  * @returns {object[]} - Transformed items
  */
-function transformItemsForCSV(items, category) {
-  return items.map(item => transformItemForCSV(item, category));
+function transformItemsForCSV(items, category, statDefs = null) {
+  return items.map(item => transformItemForCSV(item, category, statDefs));
 }
 
 /**
@@ -197,11 +225,12 @@ function transformItemsForCSV(items, category) {
  * @param {object[]} data - Array of objects to export
  * @param {string} filename - Output filename
  * @param {string} category - Category name for transformation
+ * @param {object} statDefs - Optional stat definitions for resolving stat hashes
  */
-function exportToCSV(data, filename, category) {
+function exportToCSV(data, filename, category, statDefs = null) {
   try {
     // Transform the data to be more CSV-friendly
-    const transformedData = transformItemsForCSV(data, category);
+    const transformedData = transformItemsForCSV(data, category, statDefs);
     
     // Convert to CSV
     const csv = json2csv(transformedData, {
@@ -224,8 +253,9 @@ function exportToCSV(data, filename, category) {
  * Export all build crafting data to CSV files
  * @param {object} buildData - Build crafting data object
  * @param {string} outputDir - Output directory
+ * @param {object} statDefs - Optional stat definitions for resolving stat hashes
  */
-function exportAllToCSV(buildData, outputDir) {
+function exportAllToCSV(buildData, outputDir, statDefs = null) {
   const exports = [
     { name: 'weapons', data: buildData.weapons, category: 'weapons' },
     { name: 'armor', data: buildData.armor, category: 'armor' },
@@ -239,7 +269,7 @@ function exportAllToCSV(buildData, outputDir) {
   for (const { name, data, category } of exports) {
     if (data && data.length > 0) {
       const filename = path.join(outputDir, `${name}.csv`);
-      exportToCSV(data, filename, category);
+      exportToCSV(data, filename, category, statDefs);
     }
   }
 }
@@ -249,5 +279,6 @@ module.exports = {
   exportAllToCSV,
   transformItemForCSV,
   transformItemsForCSV,
+  resolveStatName,
   STAT_HASHES
 };

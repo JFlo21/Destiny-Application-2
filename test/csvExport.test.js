@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { transformItemForCSV, transformItemsForCSV, STAT_HASHES } = require('../src/csvExport');
+const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName } = require('../src/csvExport');
 
 /**
  * Simple test runner
@@ -240,6 +240,53 @@ test('transformItemForCSV includes stat bonuses for mods', () => {
   const transformed = transformItemForCSV(item, 'armorMods');
   assert(transformed.statBonuses.includes('Mobility'), 'Should include Mobility in stat bonuses');
   assert(transformed.statBonuses.includes('+10'), 'Should include +10 in stat bonuses');
+});
+
+test('resolveStatName uses stat definitions when provided', () => {
+  const mockStatDefs = {
+    '123456': {
+      displayProperties: {
+        name: 'Custom Stat Name'
+      }
+    }
+  };
+  
+  const result = resolveStatName('123456', mockStatDefs);
+  assertEqual(result, 'Custom Stat Name', 'Should resolve from stat definitions');
+});
+
+test('resolveStatName falls back to STAT_HASHES', () => {
+  const result = resolveStatName('2996146975', null);
+  assertEqual(result, 'Mobility', 'Should fall back to hardcoded STAT_HASHES');
+});
+
+test('resolveStatName handles unknown stats', () => {
+  const result = resolveStatName('999999999', null);
+  assertEqual(result, 'Stat_999999999', 'Should return prefixed hash for unknown stats');
+});
+
+test('transformItemForCSV with statDefs resolves all stat hashes', () => {
+  const mockStatDefs = {
+    '123456': {
+      displayProperties: { name: 'Test Stat' }
+    },
+    '789012': {
+      displayProperties: { name: 'Another Stat' }
+    }
+  };
+  
+  const item = {
+    hash: 111,
+    displayProperties: { name: 'Test Item' },
+    investmentStats: [
+      { statTypeHash: 123456, value: 50 },
+      { statTypeHash: 789012, value: 75 }
+    ]
+  };
+  
+  const transformed = transformItemForCSV(item, 'weapons', mockStatDefs);
+  assertEqual(transformed['Test Stat'], 50, 'Should resolve first custom stat');
+  assertEqual(transformed['Another Stat'], 75, 'Should resolve second custom stat');
 });
 
 console.log('\n=== Test Summary ===\n');

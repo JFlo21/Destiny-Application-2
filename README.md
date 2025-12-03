@@ -141,13 +141,16 @@ The Excel export includes additional features:
 
 #### Google Sheets Export
 
-To export to Google Sheets, you need a Google service account with Google Sheets API enabled:
+To export to Google Sheets, you need a Google service account with Google Sheets API enabled.
 
+**Quick Setup:**
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create a new project or select an existing one
 3. Enable the Google Sheets API
 4. Create a service account and download the JSON credentials
 5. Use the credentials as shown in the export examples above
+
+**For detailed instructions, see [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md)**
 
 The Google Sheets export creates a new spreadsheet with:
 - All categories in separate worksheets

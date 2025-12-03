@@ -127,7 +127,7 @@ function transformItemsForCSV(items, category) {
  * @param {string} filename - Output filename
  * @param {string} category - Category name for transformation
  */
-async function exportToCSV(data, filename, category) {
+function exportToCSV(data, filename, category) {
   try {
     // Transform the data to be more CSV-friendly
     const transformedData = transformItemsForCSV(data, category);
@@ -154,7 +154,7 @@ async function exportToCSV(data, filename, category) {
  * @param {object} buildData - Build crafting data object
  * @param {string} outputDir - Output directory
  */
-async function exportAllToCSV(buildData, outputDir) {
+function exportAllToCSV(buildData, outputDir) {
   const exports = [
     { name: 'weapons', data: buildData.weapons, category: 'weapons' },
     { name: 'armor', data: buildData.armor, category: 'armor' },
@@ -167,7 +167,7 @@ async function exportAllToCSV(buildData, outputDir) {
   for (const { name, data, category } of exports) {
     if (data && data.length > 0) {
       const filename = path.join(outputDir, `${name}.csv`);
-      await exportToCSV(data, filename, category);
+      exportToCSV(data, filename, category);
     }
   }
 }

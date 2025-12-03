@@ -53,7 +53,7 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
     // Export to CSV if requested
     if (options.csv) {
       console.log('\n=== Exporting to CSV ===\n');
-      await exportAllToCSV(buildData, outputDir);
+      exportAllToCSV(buildData, outputDir);
     }
     
     // Create a summary file

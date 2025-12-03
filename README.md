@@ -4,11 +4,17 @@ A Node.js application that fetches build crafting data from the Bungie API for D
 
 ## Features
 
-- Fetches weapon data from the Destiny 2 manifest
-- Fetches armor data (helmets, gauntlets, chest, legs, class items)
-- Fetches armor mods
-- Fetches subclass aspects
-- Fetches subclass fragments
+- Fetches weapon data from the Destiny 2 manifest with detailed stats
+- Fetches **Armor 2.0** armor data (helmets, gauntlets, chest, legs, class items)
+  - Filters out legacy armor (pre-Shadowkeep)
+  - Includes energy capacity and mod socket information
+- Fetches **Armor 2.0** mods with energy costs and stat bonuses
+  - Excludes legacy mods from the old system
+- Fetches subclass aspects with stat modifiers
+- Fetches subclass fragments with stat bonuses/penalties
+- Fetches subclass abilities (grenades, melees, class abilities, supers)
+- **Resolves stat hashes to human-readable names** using DestinyStatDefinition
+- Displays **actual numeric stat values** for easy build crafting
 - Caches manifest data to minimize API calls
 
 ## Installation
@@ -86,17 +92,23 @@ BUNGIE_API_KEY=your_api_key node src/exportData.js ./my-output-dir --json-only
 #### CSV Export Features
 
 The CSV export transforms the raw Bungie API data into a more readable format:
-- **Readable stat names**: Converts hash values to human-readable stat names (e.g., "Mobility", "Range", "Impact")
+- **Readable stat names**: Automatically resolves stat hashes to human-readable names using DestinyStatDefinition (e.g., "Mobility", "Range", "Impact")
+- **Actual numeric values**: Shows the exact stat values for weapons and armor, not just hashes
+- **Armor 2.0 focused**: Only exports Armor 2.0 items with energy capacity and mod slots
+- **Detailed stat bonuses**: Shows stat bonuses/penalties from mods, fragments, and aspects as readable text (e.g., "Mobility: +10")
+- **Energy system info**: Includes energy capacity and type for armor pieces
+- **Socket information**: Shows number of sockets and mod slots available
 - **Flattened structure**: Complex nested objects are flattened for easy viewing in spreadsheet applications
 - **Category-specific fields**: Each category (weapons, armor, mods, etc.) includes relevant fields
 - **Excel/ChatGPT compatible**: CSV files can be opened in Excel or used with ChatGPT for build recommendations
 
 Exported CSV files include:
 - `weapons.csv` - All weapons with stats like Impact, Range, Stability, etc.
-- `armor.csv` - All armor pieces with Mobility, Resilience, Recovery, etc.
-- `armor-mods.csv` - All armor mods with energy costs and slot information
-- `aspects.csv` - Subclass aspects
-- `fragments.csv` - Subclass fragments
+- `armor.csv` - All **Armor 2.0** pieces with Mobility, Resilience, Recovery, energy capacity, etc.
+- `armor-mods.csv` - All **Armor 2.0** mods with energy costs, slot information, and stat bonuses
+- `aspects.csv` - Subclass aspects with stat modifiers
+- `fragments.csv` - Subclass fragments with stat bonuses/penalties
+- `abilities.csv` - Subclass abilities (grenades, melees, class abilities, supers)
 - `subclasses.csv` - All subclass items
 
 #### Using CSV Files with ChatGPT for Build Recommendations

@@ -8,7 +8,10 @@ const {
   getAspects,
   getFragments,
   clearCache,
-  ITEM_CATEGORIES
+  isArmor2_0,
+  enrichItemWithStats,
+  ITEM_CATEGORIES,
+  ARMOR_2_0_PLUG_SET_HASH
 } = require('../src/buildCrafting');
 const fetch = require('node-fetch');
 const AbortController = require('abort-controller');
@@ -97,6 +100,55 @@ test('ITEM_CATEGORIES has correct values', () => {
   assertEqual(ITEM_CATEGORIES.WEAPON, 1, 'Weapon category should be 1');
   assertEqual(ITEM_CATEGORIES.ARMOR, 20, 'Armor category should be 20');
   assertEqual(ITEM_CATEGORIES.ARMOR_MODS, 59, 'Armor mods category should be 59');
+});
+
+test('isArmor2_0 returns true for armor with energy capacity', () => {
+  const armor2Item = {
+    energy: { energyCapacity: 10 }
+  };
+  assert(isArmor2_0(armor2Item), 'Should return true for armor with energy capacity');
+});
+
+test('isArmor2_0 returns false for armor without energy capacity', () => {
+  const legacyArmor = {
+    energy: { energyCapacity: 0 }
+  };
+  assert(!isArmor2_0(legacyArmor), 'Should return false for armor without energy capacity');
+});
+
+test('isArmor2_0 returns true for armor with Armor 2.0 plug set hash', () => {
+  const armor2Item = {
+    sockets: {
+      socketEntries: [
+        { plugSetHash: ARMOR_2_0_PLUG_SET_HASH }
+      ]
+    }
+  };
+  assert(isArmor2_0(armor2Item), 'Should return true for armor with Armor 2.0 plug set hash');
+});
+
+test('enrichItemWithStats adds enriched stats to item', () => {
+  const item = {
+    stats: {
+      stats: {
+        '2996146975': { value: 10 }
+      }
+    }
+  };
+  const statDefs = {
+    '2996146975': {
+      displayProperties: {
+        name: 'Mobility',
+        description: 'Increases movement speed'
+      }
+    }
+  };
+  
+  const enriched = enrichItemWithStats(item, statDefs);
+  assert(enriched.enrichedStats, 'Should have enrichedStats');
+  assert(enriched.enrichedStats['2996146975'], 'Should have stat hash key');
+  assertEqual(enriched.enrichedStats['2996146975'].name, 'Mobility', 'Stat name should be Mobility');
+  assertEqual(enriched.enrichedStats['2996146975'].value, 10, 'Stat value should be 10');
 });
 
 // Integration Tests (require network access)

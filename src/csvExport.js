@@ -3,6 +3,12 @@ const path = require('path');
 const { json2csv } = require('json-2-csv');
 
 /**
+ * Armor 2.0 constants (duplicated from buildCrafting.js to avoid circular dependency)
+ */
+const ARMOR_2_0_PLUG_SET_HASH = 4163334830;
+const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145;
+
+/**
  * Stat type hash to name mapping
  * These are common Destiny 2 stat hashes
  */
@@ -63,22 +69,35 @@ function transformItemForCSV(item, category) {
     transformed.iconUrl = `https://www.bungie.net${item.displayProperties.icon}`;
   }
   
-  // Extract stats if available
-  if (item.stats?.stats) {
-    for (const [statHash, statData] of Object.entries(item.stats.stats)) {
-      const statName = STAT_HASHES[String(statHash)] || `Stat_${statHash}`;
-      transformed[statName] = statData.value || 0;
-    }
-  }
-  
-  // Extract investment stats if available (for weapons)
-  if (item.investmentStats) {
-    item.investmentStats.forEach(stat => {
-      const statName = STAT_HASHES[String(stat.statTypeHash)] || `Stat_${stat.statTypeHash}`;
-      if (!transformed[statName]) {
-        transformed[statName] = stat.value || 0;
+  // Use enriched stats if available (with resolved stat names)
+  if (item.enrichedStats) {
+    for (const [statHash, enrichedStat] of Object.entries(item.enrichedStats)) {
+      const statName = enrichedStat.name;
+      transformed[statName] = enrichedStat.value;
+      // Add max value for reference
+      if (enrichedStat.maximum && enrichedStat.maximum !== 100) {
+        transformed[`${statName}_Max`] = enrichedStat.maximum;
       }
-    });
+    }
+  } else {
+    // Fallback to old stat extraction if enriched stats not available
+    // Extract stats if available
+    if (item.stats?.stats) {
+      for (const [statHash, statData] of Object.entries(item.stats.stats)) {
+        const statName = STAT_HASHES[String(statHash)] || `Stat_${statHash}`;
+        transformed[statName] = statData.value || 0;
+      }
+    }
+    
+    // Extract investment stats if available (for weapons)
+    if (item.investmentStats) {
+      item.investmentStats.forEach(stat => {
+        const statName = STAT_HASHES[String(stat.statTypeHash)] || `Stat_${stat.statTypeHash}`;
+        if (!transformed[statName]) {
+          transformed[statName] = stat.value || 0;
+        }
+      });
+    }
   }
   
   // Category-specific fields
@@ -91,13 +110,63 @@ function transformItemForCSV(item, category) {
     const classTypes = { 0: 'Titan', 1: 'Hunter', 2: 'Warlock' };
     transformed.classType = item.classType !== undefined ? 
       (classTypes[item.classType] || 'Any') : '';
+    
+    // Add Armor 2.0 specific fields
+    if (item.energy) {
+      transformed.energyCapacity = item.energy.energyCapacity || 0;
+      transformed.energyType = item.energy.energyType || '';
+      transformed.energyTypeHash = item.energy.energyTypeHash || '';
+    }
+    
+    // Add detailed socket information
+    if (item.sockets?.socketEntries) {
+      transformed.socketCount = item.sockets.socketEntries.length;
+      // Count mod sockets specifically
+      const modSockets = item.sockets.socketEntries.filter(s => 
+        s.socketTypeHash && (
+          s.plugSetHash === ARMOR_2_0_PLUG_SET_HASH || // Armor 2.0 mod socket
+          s.singleInitialItemHash === ARMOR_2_0_STAT_PLUG_CATEGORY // Stat mod socket
+        )
+      );
+      transformed.modSocketCount = modSockets.length;
+    }
   } else if (category === 'armorMods') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     transformed.energyCost = item.plug?.energyCost?.energyCost || 0;
     transformed.energyType = item.plug?.energyCost?.energyTypeHash || '';
+    
+    // Add investment stats for mods (stat bonuses they provide)
+    if (item.investmentStats && item.investmentStats.length > 0) {
+      const statBonuses = item.investmentStats.map(stat => {
+        const statName = STAT_HASHES[String(stat.statTypeHash)] || `Stat_${stat.statTypeHash}`;
+        return `${statName}: ${stat.value > 0 ? '+' : ''}${stat.value}`;
+      }).join(', ');
+      transformed.statBonuses = statBonuses;
+    }
   } else if (category === 'aspects' || category === 'fragments') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     transformed.damageType = item.talentGrid?.hudDamageType || '';
+    
+    // Add investment stats for fragments (stat bonuses/penalties they provide)
+    if (item.investmentStats && item.investmentStats.length > 0) {
+      const statBonuses = item.investmentStats.map(stat => {
+        const statName = STAT_HASHES[String(stat.statTypeHash)] || `Stat_${stat.statTypeHash}`;
+        return `${statName}: ${stat.value > 0 ? '+' : ''}${stat.value}`;
+      }).join(', ');
+      transformed.statBonuses = statBonuses;
+    }
+  } else if (category === 'abilities') {
+    transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
+    transformed.damageType = item.talentGrid?.hudDamageType || '';
+    
+    // Add cooldown information if available
+    if (item.investmentStats && item.investmentStats.length > 0) {
+      const stats = item.investmentStats.map(stat => {
+        const statName = STAT_HASHES[String(stat.statTypeHash)] || `Stat_${stat.statTypeHash}`;
+        return `${statName}: ${stat.value}`;
+      }).join(', ');
+      transformed.stats = stats;
+    }
   }
   
   // Add perks if available
@@ -105,8 +174,8 @@ function transformItemForCSV(item, category) {
     transformed.perks = item.perks.map(p => p.perkHash).join(', ');
   }
   
-  // Add sockets information
-  if (item.sockets?.socketEntries) {
+  // Add sockets information if not already added
+  if (transformed.socketCount === undefined && item.sockets?.socketEntries) {
     transformed.socketCount = item.sockets.socketEntries.length;
   }
   
@@ -163,7 +232,8 @@ function exportAllToCSV(buildData, outputDir) {
     { name: 'armor-mods', data: buildData.armorMods, category: 'armorMods' },
     { name: 'subclasses', data: buildData.subclasses, category: 'subclasses' },
     { name: 'aspects', data: buildData.aspects, category: 'aspects' },
-    { name: 'fragments', data: buildData.fragments, category: 'fragments' }
+    { name: 'fragments', data: buildData.fragments, category: 'fragments' },
+    { name: 'abilities', data: buildData.abilities, category: 'abilities' }
   ];
   
   for (const { name, data, category } of exports) {

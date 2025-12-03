@@ -2,16 +2,20 @@ const fs = require('fs');
 const path = require('path');
 const { createBungieClient } = require('./bungieClient');
 const { getAllBuildCraftingData } = require('./buildCrafting');
+const { loadStatDefinitions } = require('./buildCrafting');
 const { exportAllToCSV } = require('./csvExport');
+const { exportAllToExcel, exportAllToSeparateExcelFiles } = require('./excelExport');
 
 /**
- * Export build crafting data to JSON and CSV files
+ * Export build crafting data to JSON, CSV, and Excel files
  * @param {string} outputDir - Directory to save the files
  * @param {object} options - Export options
  * @param {boolean} options.json - Export JSON files (default: true)
  * @param {boolean} options.csv - Export CSV files (default: true)
+ * @param {boolean} options.excel - Export Excel files (default: false)
+ * @param {boolean} options.excelMaster - Export master Excel file with all data (default: false)
  */
-async function exportBuildCraftingData(outputDir = './data', options = { json: true, csv: true }) {
+async function exportBuildCraftingData(outputDir = './data', options = { json: true, csv: true, excel: false, excelMaster: false }) {
   const apiKey = process.env.BUNGIE_API_KEY;
   
   if (!apiKey) {
@@ -30,6 +34,11 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
   try {
     const client = createBungieClient(apiKey);
     const buildData = await getAllBuildCraftingData(client);
+    
+    // Load stat definitions for resolving stat hashes
+    console.log('\nLoading stat definitions for CSV export...');
+    const statDefs = await loadStatDefinitions(client);
+    console.log('Stat definitions loaded');
     
     // Export to JSON if requested
     if (options.json) {
@@ -54,7 +63,20 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
     // Export to CSV if requested
     if (options.csv) {
       console.log('\n=== Exporting to CSV ===\n');
-      exportAllToCSV(buildData, outputDir);
+      exportAllToCSV(buildData, outputDir, statDefs);
+    }
+    
+    // Export to Excel if requested
+    if (options.excel) {
+      console.log('\n=== Exporting to Excel (separate files) ===\n');
+      await exportAllToSeparateExcelFiles(buildData, outputDir, statDefs);
+    }
+    
+    // Export to master Excel file if requested
+    if (options.excelMaster) {
+      console.log('\n=== Exporting to Master Excel File ===\n');
+      const masterFilename = path.join(outputDir, 'destiny2-build-data-master.xlsx');
+      await exportAllToExcel(buildData, masterFilename, statDefs);
     }
     
     // Create a summary file
@@ -62,7 +84,9 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
       exportDate: new Date().toISOString(),
       formats: {
         json: options.json,
-        csv: options.csv
+        csv: options.csv,
+        excel: options.excel,
+        excelMaster: options.excelMaster
       },
       counts: {
         weapons: buildData.weapons.length,
@@ -94,15 +118,37 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
 if (require.main === module) {
   // Parse command line options
   const args = process.argv.slice(2);
-  const options = { json: true, csv: true };
+  const options = { json: true, csv: true, excel: false, excelMaster: false };
   
   // Check for format flags
   if (args.includes('--json-only')) {
     options.json = true;
     options.csv = false;
+    options.excel = false;
+    options.excelMaster = false;
   } else if (args.includes('--csv-only')) {
     options.json = false;
     options.csv = true;
+    options.excel = false;
+    options.excelMaster = false;
+  } else if (args.includes('--excel-only')) {
+    options.json = false;
+    options.csv = false;
+    options.excel = true;
+    options.excelMaster = false;
+  } else if (args.includes('--excel-master')) {
+    options.json = false;
+    options.csv = false;
+    options.excel = false;
+    options.excelMaster = true;
+  } else {
+    // Default: export to all formats if specific flags are present
+    if (args.includes('--excel')) {
+      options.excel = true;
+    }
+    if (args.includes('--excel-master')) {
+      options.excelMaster = true;
+    }
   }
   
   // Get output directory (first non-flag argument or default)

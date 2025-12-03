@@ -90,8 +90,6 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
 
 // Run if called directly
 if (require.main === module) {
-  const outputDir = process.argv[2] || './data';
-  
   // Parse command line options
   const args = process.argv.slice(2);
   const options = { json: true, csv: true };
@@ -104,6 +102,9 @@ if (require.main === module) {
     options.json = false;
     options.csv = true;
   }
+  
+  // Get output directory (first non-flag argument or default)
+  const outputDir = args.find(arg => !arg.startsWith('--')) || './data';
   
   exportBuildCraftingData(outputDir, options).catch(error => {
     console.error('Export failed:', error.message);

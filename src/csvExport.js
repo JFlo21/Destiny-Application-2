@@ -42,36 +42,6 @@ const STAT_HASHES = {
 };
 
 /**
- * Flatten nested object into a single level with dot notation
- * @param {object} obj - Object to flatten
- * @param {string} prefix - Prefix for keys
- * @returns {object} - Flattened object
- */
-function flattenObject(obj, prefix = '') {
-  const flattened = {};
-  
-  for (const key in obj) {
-    if (obj.hasOwnProperty(key)) {
-      const value = obj[key];
-      const newKey = prefix ? `${prefix}.${key}` : key;
-      
-      if (value === null || value === undefined) {
-        flattened[newKey] = '';
-      } else if (typeof value === 'object' && !Array.isArray(value)) {
-        Object.assign(flattened, flattenObject(value, newKey));
-      } else if (Array.isArray(value)) {
-        // Convert arrays to comma-separated strings
-        flattened[newKey] = value.join(', ');
-      } else {
-        flattened[newKey] = value;
-      }
-    }
-  }
-  
-  return flattened;
-}
-
-/**
  * Transform item data to a more readable format for CSV
  * @param {object} item - Item data from Bungie API
  * @param {string} category - Category of item (weapons, armor, etc.)

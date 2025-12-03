@@ -40,7 +40,8 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
         { name: 'armor-mods', data: buildData.armorMods },
         { name: 'subclasses', data: buildData.subclasses },
         { name: 'aspects', data: buildData.aspects },
-        { name: 'fragments', data: buildData.fragments }
+        { name: 'fragments', data: buildData.fragments },
+        { name: 'abilities', data: buildData.abilities }
       ];
       
       for (const { name, data } of exports) {
@@ -69,7 +70,8 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
         armorMods: buildData.armorMods.length,
         subclasses: buildData.subclasses.length,
         aspects: buildData.aspects.length,
-        fragments: buildData.fragments.length
+        fragments: buildData.fragments.length,
+        abilities: buildData.abilities.length
       }
     };
     

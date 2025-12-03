@@ -59,6 +59,13 @@ const SUBCLASS_PLUG_CATEGORIES = {
 };
 
 /**
+ * Armor 2.0 related constants
+ * Armor 2.0 items have energy capacity and support the mod socket system
+ */
+const ARMOR_2_0_PLUG_SET_HASH = 4163334830; // Common Armor 2.0 plug set hash
+const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145; // Stat mod plug category hash
+
+/**
  * Cache for manifest data
  */
 let manifestCache = null;
@@ -96,6 +103,63 @@ async function loadDefinitions(client, tableName) {
 }
 
 /**
+ * Loads stat definitions for looking up stat names
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object>} - Stat definitions
+ */
+async function loadStatDefinitions(client) {
+  return await loadDefinitions(client, 'DestinyStatDefinition');
+}
+
+/**
+ * Enrich item with resolved stat names and values
+ * @param {object} item - Item to enrich
+ * @param {object} statDefs - Stat definitions
+ * @returns {object} - Item with enriched stats
+ */
+function enrichItemWithStats(item, statDefs) {
+  if (!item.stats || !item.stats.stats) {
+    return item;
+  }
+  
+  // Create a new stats object with resolved names
+  const enrichedStats = {};
+  
+  for (const [statHash, statData] of Object.entries(item.stats.stats)) {
+    const statDef = statDefs[statHash];
+    const statName = statDef?.displayProperties?.name || `Unknown_${statHash}`;
+    const statDescription = statDef?.displayProperties?.description || '';
+    
+    enrichedStats[statHash] = {
+      hash: statHash,
+      name: statName,
+      description: statDescription,
+      value: statData.value || 0,
+      minimum: statData.minimum || 0,
+      maximum: statData.maximum || 100,
+      displayMaximum: statData.displayMaximum
+    };
+  }
+  
+  // Add the enriched stats to the item
+  return {
+    ...item,
+    enrichedStats
+  };
+}
+
+/**
+ * Enrich items with stat definitions
+ * @param {object[]} items - Items to enrich
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object[]>} - Enriched items
+ */
+async function enrichItemsWithStatNames(items, client) {
+  const statDefs = await loadStatDefinitions(client);
+  return items.map(item => enrichItemWithStats(item, statDefs));
+}
+
+/**
  * Filters items by category
  * @param {object} items - Item definitions
  * @param {number} categoryHash - Category hash to filter by
@@ -118,23 +182,66 @@ async function getWeapons(client) {
 }
 
 /**
- * Gets all armor from the manifest
+ * Check if an armor item is Armor 2.0 (has energy capacity and mod slots)
+ * @param {object} item - Armor item to check
+ * @returns {boolean} - True if item is Armor 2.0
+ */
+function isArmor2_0(item) {
+  // Armor 2.0 items have energy capacity
+  if (item.energy && item.energy.energyCapacity > 0) {
+    return true;
+  }
+  
+  // Also check for the presence of stat mod sockets (Armor 2.0 specific)
+  if (item.sockets && item.sockets.socketEntries) {
+    return item.sockets.socketEntries.some(socket => {
+      return socket.plugSetHash === ARMOR_2_0_PLUG_SET_HASH ||
+             socket.singleInitialItemHash === ARMOR_2_0_STAT_PLUG_CATEGORY;
+    });
+  }
+  
+  return false;
+}
+
+/**
+ * Gets all armor from the manifest (Armor 2.0 only)
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of armor definitions
  */
 async function getArmor(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  return filterByCategory(items, ITEM_CATEGORIES.ARMOR);
+  const allArmor = filterByCategory(items, ITEM_CATEGORIES.ARMOR);
+  
+  // Filter for Armor 2.0 only (excludes legacy armor with old mod system)
+  return allArmor.filter(item => isArmor2_0(item));
 }
 
 /**
- * Gets all armor mods from the manifest
+ * Gets all armor mods from the manifest (Armor 2.0 mods only)
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of armor mod definitions
  */
 async function getArmorMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  return filterByCategory(items, ITEM_CATEGORIES.ARMOR_MODS);
+  const allMods = filterByCategory(items, ITEM_CATEGORIES.ARMOR_MODS);
+  
+  // Filter for Armor 2.0 mods only (those with energy costs)
+  return allMods.filter(mod => {
+    // Armor 2.0 mods have energy costs in their plug definition
+    if (mod.plug && mod.plug.energyCost) {
+      return true;
+    }
+    
+    // Also include mods with plugCategoryIdentifier containing "v2" or "enhancements"
+    if (mod.plug && mod.plug.plugCategoryIdentifier) {
+      const identifier = mod.plug.plugCategoryIdentifier.toLowerCase();
+      return identifier.includes('v2') || 
+             identifier.includes('enhancements') ||
+             identifier.includes('armor_tier');
+    }
+    
+    return false;
+  });
 }
 
 /**
@@ -149,23 +256,48 @@ async function getSubclassItems(client) {
   const subclassItems = filterByCategory(items, ITEM_CATEGORIES.SUBCLASS);
   
   // Aspects have specific plug category identifiers
+  // Look for items that have "aspect" in their plug category or item type
   const aspects = Object.values(items).filter(item => {
+    if (!item.plug) return false;
+    
+    const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
-    return itemType.includes('aspect') || 
-           (item.plug && item.plug.plugCategoryIdentifier?.includes('aspects'));
+    
+    // Match aspects by plug category identifier or item type
+    return plugCat.includes('aspect') || itemType.includes('aspect');
   });
   
   // Fragments have specific plug category identifiers  
+  // Look for items that have "fragment" in their plug category or item type
   const fragments = Object.values(items).filter(item => {
+    if (!item.plug) return false;
+    
+    const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
-    return itemType.includes('fragment') ||
-           (item.plug && item.plug.plugCategoryIdentifier?.includes('fragments'));
+    
+    // Match fragments by plug category identifier or item type
+    return plugCat.includes('fragment') || itemType.includes('fragment');
+  });
+  
+  // Get subclass abilities (grenades, melees, class abilities, supers)
+  const abilities = Object.values(items).filter(item => {
+    if (!item.plug) return false;
+    
+    const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
+    
+    // Match common subclass ability identifiers
+    return plugCat.includes('grenades') ||
+           plugCat.includes('melee') ||
+           plugCat.includes('class_abilities') ||
+           plugCat.includes('super') ||
+           plugCat.includes('v400.plugs.abilities');
   });
   
   return {
     subclasses: subclassItems,
     aspects,
-    fragments
+    fragments,
+    abilities
   };
 }
 
@@ -201,23 +333,31 @@ async function getAllBuildCraftingData(client) {
   console.log(`Found ${weapons.length} weapons`);
   
   const armor = await getArmor(client);
-  console.log(`Found ${armor.length} armor pieces`);
+  console.log(`Found ${armor.length} Armor 2.0 pieces`);
   
   const armorMods = await getArmorMods(client);
-  console.log(`Found ${armorMods.length} armor mods`);
+  console.log(`Found ${armorMods.length} Armor 2.0 mods`);
   
   const subclassData = await getSubclassItems(client);
   console.log(`Found ${subclassData.subclasses.length} subclasses`);
   console.log(`Found ${subclassData.aspects.length} aspects`);
   console.log(`Found ${subclassData.fragments.length} fragments`);
+  console.log(`Found ${subclassData.abilities.length} abilities`);
+  
+  // Enrich all items with stat names
+  console.log('\nEnriching items with stat definitions...');
+  const enrichedWeapons = await enrichItemsWithStatNames(weapons, client);
+  const enrichedArmor = await enrichItemsWithStatNames(armor, client);
+  console.log('Stat enrichment complete');
   
   return {
-    weapons,
-    armor,
+    weapons: enrichedWeapons,
+    armor: enrichedArmor,
     armorMods,
     subclasses: subclassData.subclasses,
     aspects: subclassData.aspects,
-    fragments: subclassData.fragments
+    fragments: subclassData.fragments,
+    abilities: subclassData.abilities
   };
 }
 
@@ -234,8 +374,14 @@ module.exports = {
   WEAPON_TYPES,
   ARMOR_TYPES,
   SUBCLASS_PLUG_CATEGORIES,
+  ARMOR_2_0_PLUG_SET_HASH,
+  ARMOR_2_0_STAT_PLUG_CATEGORY,
   loadManifest,
   loadDefinitions,
+  loadStatDefinitions,
+  enrichItemWithStats,
+  enrichItemsWithStatNames,
+  isArmor2_0,
   getWeapons,
   getArmor,
   getArmorMods,

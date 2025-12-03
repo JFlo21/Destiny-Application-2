@@ -32,6 +32,7 @@ async function main() {
     console.log(`Total Subclasses: ${buildData.subclasses.length}`);
     console.log(`Total Aspects: ${buildData.aspects.length}`);
     console.log(`Total Fragments: ${buildData.fragments.length}`);
+    console.log(`Total Abilities: ${buildData.abilities.length}`);
     
     // Sample output - show first few items from each category
     console.log('\n=== Sample Data ===\n');

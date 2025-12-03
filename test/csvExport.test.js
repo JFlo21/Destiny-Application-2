@@ -183,6 +183,65 @@ test('transformItemForCSV handles investment stats', () => {
   assertEqual(transformed.Range, 60);
 });
 
+test('transformItemForCSV uses enriched stats when available', () => {
+  const item = {
+    hash: 777,
+    displayProperties: { name: 'Test Armor' },
+    enrichedStats: {
+      '2996146975': {
+        name: 'Mobility',
+        value: 15,
+        maximum: 100
+      },
+      '392767087': {
+        name: 'Resilience',
+        value: 20,
+        maximum: 100
+      }
+    }
+  };
+  
+  const transformed = transformItemForCSV(item, 'armor');
+  assertEqual(transformed.Mobility, 15);
+  assertEqual(transformed.Resilience, 20);
+});
+
+test('transformItemForCSV includes Armor 2.0 energy fields', () => {
+  const item = {
+    hash: 888,
+    displayProperties: { name: 'Armor 2.0 Helmet' },
+    classType: 0,
+    energy: {
+      energyCapacity: 10,
+      energyType: 1,
+      energyTypeHash: 591714140
+    }
+  };
+  
+  const transformed = transformItemForCSV(item, 'armor');
+  assertEqual(transformed.energyCapacity, 10);
+  assertEqual(transformed.energyType, 1);
+  assertEqual(transformed.energyTypeHash, 591714140);
+});
+
+test('transformItemForCSV includes stat bonuses for mods', () => {
+  const item = {
+    hash: 999,
+    displayProperties: { name: 'Mobility Mod' },
+    plug: {
+      plugCategoryIdentifier: 'enhancements.v2_general',
+      energyCost: { energyCost: 3 }
+    },
+    investmentStats: [
+      { statTypeHash: '2996146975', value: 10 } // Mobility +10
+    ]
+  };
+  
+  const transformed = transformItemForCSV(item, 'armorMods');
+  assert(transformed.statBonuses.includes('Mobility'), 'Should include Mobility in stat bonuses');
+  assert(transformed.statBonuses.includes('+10'), 'Should include +10 in stat bonuses');
+});
+
 console.log('\n=== Test Summary ===\n');
 console.log(`Total: ${testsRun}`);
 console.log(`Passed: ${testsPassed}`);

@@ -99,6 +99,20 @@ Exported CSV files include:
 - `fragments.csv` - Subclass fragments
 - `subclasses.csv` - All subclass items
 
+#### Using CSV Files with ChatGPT for Build Recommendations
+
+The CSV format makes it easy to get build recommendations from ChatGPT:
+
+1. Export the data to CSV files using `npm run export:csv`
+2. Open the relevant CSV file (e.g., `weapons.csv`, `armor.csv`)
+3. Upload or paste the CSV content to ChatGPT
+4. Ask for build recommendations, such as:
+   - "Based on this weapon data, what's the best loadout for PvP?"
+   - "Which armor pieces have the highest Resilience and Recovery stats?"
+   - "What armor mods should I use for a build focused on grenades?"
+
+The readable stat names and organized structure make it easy for ChatGPT to understand and analyze the data.
+
 ### Using as a Module
 
 ```javascript
@@ -187,7 +201,10 @@ Make sure you have set the `BUNGIE_API_KEY` secret (see Configuration section ab
 # Unit tests (no API key required)
 npm test
 
-# Integration tests (API key required)
+# CSV export integration test (no API key required, uses mock data)
+node test/csvExport.integration.test.js
+
+# Integration tests with real API (API key required)
 BUNGIE_API_KEY=your_api_key npm test
 ```
 

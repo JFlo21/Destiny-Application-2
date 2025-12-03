@@ -210,8 +210,23 @@ if (require.main === module) {
     options.googleSheetsCredentials = args[credentialsIndex + 1];
   }
   
-  // Get output directory (first non-flag argument or default)
-  const outputDir = args.find(arg => !arg.startsWith('--') && !arg.endsWith('.json')) || './data';
+  // Get output directory (first non-flag argument, excluding credentials file)
+  // Skip arguments that are flags (start with --) or follow the --google-sheets-credentials flag
+  let outputDir = './data';
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    // Skip flags and their values
+    if (arg.startsWith('--')) {
+      // If this is --google-sheets-credentials, skip the next arg too (the file path)
+      if (arg === '--google-sheets-credentials') {
+        i++; // Skip the next argument (credentials file path)
+      }
+      continue;
+    }
+    // First non-flag argument is the output directory
+    outputDir = arg;
+    break;
+  }
   
   exportBuildCraftingData(outputDir, options).catch(error => {
     console.error('Export failed:', error.message);

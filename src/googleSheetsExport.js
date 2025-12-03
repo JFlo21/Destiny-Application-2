@@ -20,7 +20,11 @@ function createSheetsClient(credentials) {
     auth = new google.auth.OAuth2();
     auth.setCredentials(credentials);
   } else {
-    throw new Error('Invalid credentials format. Expected service account or OAuth2 credentials.');
+    throw new Error(
+      'Invalid credentials format. Expected one of:\n' +
+      '1. Service account credentials (must include "type": "service_account", "private_key", "client_email")\n' +
+      '2. OAuth2 credentials (must include "access_token")'
+    );
   }
   
   return google.sheets({ version: 'v4', auth });
@@ -89,16 +93,15 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
     
     // First, rename the default sheet and add other sheets
     const requests = [];
-    let sheetId = 0;
+    let actualSheetIndex = 0;
     
-    for (let i = 0; i < worksheets.length; i++) {
-      const { name, data } = worksheets[i];
-      
-      if (!data || data.length === 0) {
-        continue;
-      }
-      
-      if (i === 0) {
+    // Filter worksheets with data and assign sheet IDs
+    const validWorksheets = worksheets
+      .filter(({ data }) => data && data.length > 0)
+      .map((ws, index) => ({ ...ws, sheetId: index }));
+    
+    for (const { name, sheetId } of validWorksheets) {
+      if (sheetId === 0) {
         // Rename the default sheet
         requests.push({
           updateSheetProperties: {
@@ -115,7 +118,7 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
           addSheet: {
             properties: {
               title: name,
-              sheetId: i
+              sheetId: sheetId
             }
           }
         });
@@ -133,11 +136,7 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
     }
     
     // Now populate each sheet with data
-    for (const { name, data, category } of worksheets) {
-      if (!data || data.length === 0) {
-        continue;
-      }
-      
+    for (const { name, data, category } of validWorksheets) {
       // Transform data
       const transformedData = transformItemsForCSV(data, category, statDefs);
       const values = dataToSheetValues(transformedData);
@@ -157,16 +156,11 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
     
     // Format headers (make them bold)
     const formatRequests = [];
-    for (let i = 0; i < worksheets.length; i++) {
-      const { data } = worksheets[i];
-      if (!data || data.length === 0) {
-        continue;
-      }
-      
+    for (const { sheetId } of validWorksheets) {
       formatRequests.push({
         repeatCell: {
           range: {
-            sheetId: i,
+            sheetId: sheetId,
             startRowIndex: 0,
             endRowIndex: 1
           },
@@ -190,7 +184,7 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
       formatRequests.push({
         updateSheetProperties: {
           properties: {
-            sheetId: i,
+            sheetId: sheetId,
             gridProperties: {
               frozenRowCount: 1
             }

@@ -1,1 +1,170 @@
 # Destiny-Application-2
+
+A Node.js application that fetches build crafting data from the Bungie API for Destiny 2.
+
+## Features
+
+- Fetches weapon data from the Destiny 2 manifest
+- Fetches armor data (helmets, gauntlets, chest, legs, class items)
+- Fetches armor mods
+- Fetches subclass aspects
+- Fetches subclass fragments
+- Caches manifest data to minimize API calls
+
+## Installation
+
+```bash
+npm install
+```
+
+## Configuration
+
+### Getting a Bungie API Key
+
+1. Go to [Bungie's Developer Portal](https://www.bungie.net/en/Application)
+2. Sign in with your Bungie account
+3. Click "Create New App"
+4. Fill in the required fields:
+   - **Application Name**: Any name you want (e.g., "Destiny Data Fetcher")
+   - **Website**: Can be any URL (e.g., your GitHub repo URL)
+   - **OAuth Client Type**: Select "Not Applicable" (we only need the API key)
+5. Accept the terms and create the application
+6. Copy the **API Key** shown on the application page
+
+### Setting the API Key
+
+For local development, set your Bungie API key as an environment variable:
+
+```bash
+export BUNGIE_API_KEY=your_api_key_here
+```
+
+### Setting up GitHub Secrets (for the weekly workflow)
+
+To enable the automated weekly data export:
+
+1. Go to your GitHub repository
+2. Click **Settings** > **Secrets and variables** > **Actions**
+3. Click **New repository secret**
+4. Name: `BUNGIE_API_KEY`
+5. Value: Paste your Bungie API key
+6. Click **Add secret**
+
+## Usage
+
+### Running the Application
+
+```bash
+# Set environment variable and run
+BUNGIE_API_KEY=your_api_key npm start
+```
+
+### Exporting Data to Files
+
+```bash
+# Export all data to ./data directory
+BUNGIE_API_KEY=your_api_key npm run export
+
+# Export to a custom directory
+BUNGIE_API_KEY=your_api_key node src/exportData.js ./my-output-dir
+```
+
+### Using as a Module
+
+```javascript
+const { createBungieClient } = require('./src/bungieClient');
+const { getAllBuildCraftingData, getWeapons, getArmor, getArmorMods, getAspects, getFragments } = require('./src/buildCrafting');
+
+async function example() {
+  const client = createBungieClient('your-api-key');
+  
+  // Get all build crafting data at once
+  const buildData = await getAllBuildCraftingData(client);
+  
+  // Or fetch specific categories
+  const weapons = await getWeapons(client);
+  const armor = await getArmor(client);
+  const mods = await getArmorMods(client);
+  const aspects = await getAspects(client);
+  const fragments = await getFragments(client);
+}
+```
+
+## Project Structure
+
+```
+├── index.js                 # Main entry point
+├── src/
+│   ├── bungieClient.js      # Bungie API client
+│   ├── manifest.js          # Manifest fetching utilities
+│   ├── buildCrafting.js     # Build crafting data fetching
+│   └── exportData.js        # Data export to JSON files
+├── test/
+│   └── buildCrafting.test.js # Tests
+├── .github/
+│   └── workflows/
+│       └── weekly-export.yml # Weekly automated export
+├── package.json
+└── README.md
+```
+
+## Automated Weekly Export
+
+This repository includes a GitHub Actions workflow that automatically exports all Destiny 2 build crafting data every week.
+
+### How It Works
+
+- **Schedule**: Runs every Sunday at midnight UTC
+- **Output**: Exports weapons, armor, armor mods, aspects, and fragments as JSON files
+- **Artifacts**: Data is uploaded as GitHub Actions artifacts with 90-day retention
+
+### Viewing the Exported Data
+
+1. Go to the **Actions** tab in your repository
+2. Click on the latest "Weekly Destiny 2 Data Export" workflow run
+3. Scroll down to **Artifacts**
+4. Download the `destiny2-build-data-*` artifact
+
+### Manual Trigger
+
+You can also trigger the export manually:
+1. Go to **Actions** > **Weekly Destiny 2 Data Export**
+2. Click **Run workflow** > **Run workflow**
+
+### Requirements
+
+Make sure you have set the `BUNGIE_API_KEY` secret (see Configuration section above).
+
+## API Reference
+
+### bungieClient.js
+
+- `createBungieClient(apiKey)` - Creates a new Bungie API client
+
+### buildCrafting.js
+
+- `getWeapons(client)` - Fetches all weapons
+- `getArmor(client)` - Fetches all armor pieces
+- `getArmorMods(client)` - Fetches all armor mods
+- `getAspects(client)` - Fetches all subclass aspects
+- `getFragments(client)` - Fetches all subclass fragments
+- `getAllBuildCraftingData(client)` - Fetches all build crafting data
+- `clearCache()` - Clears the manifest cache
+
+## Running Tests
+
+```bash
+# Unit tests (no API key required)
+npm test
+
+# Integration tests (API key required)
+BUNGIE_API_KEY=your_api_key npm test
+```
+
+## Requirements
+
+- Node.js 14 or later (Node.js 18+ recommended)
+
+## License
+
+ISC

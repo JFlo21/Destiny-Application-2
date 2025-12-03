@@ -1,0 +1,40 @@
+name: Weekly Destiny 2 Data Export
+
+on:
+  # Run every Sunday at midnight UTC
+  schedule:
+    - cron: '0 0 * * 0'
+  # Allow manual trigger
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  export-data:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+      
+      - name: Export Destiny 2 build crafting data
+        env:
+          BUNGIE_API_KEY: ${{ secrets.BUNGIE_API_KEY }}
+        run: node src/exportData.js ./destiny-data
+      
+      - name: Upload data as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: destiny2-build-data-${{ github.run_number }}
+          path: destiny-data/
+          retention-days: 90

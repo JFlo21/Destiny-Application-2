@@ -66,7 +66,7 @@ function transformItemForCSV(item, category) {
   // Extract stats if available
   if (item.stats?.stats) {
     for (const [statHash, statData] of Object.entries(item.stats.stats)) {
-      const statName = STAT_HASHES[statHash] || `Stat_${statHash}`;
+      const statName = STAT_HASHES[String(statHash)] || `Stat_${statHash}`;
       transformed[statName] = statData.value || 0;
     }
   }
@@ -74,7 +74,7 @@ function transformItemForCSV(item, category) {
   // Extract investment stats if available (for weapons)
   if (item.investmentStats) {
     item.investmentStats.forEach(stat => {
-      const statName = STAT_HASHES[stat.statTypeHash] || `Stat_${stat.statTypeHash}`;
+      const statName = STAT_HASHES[String(stat.statTypeHash)] || `Stat_${stat.statTypeHash}`;
       if (!transformed[statName]) {
         transformed[statName] = stat.value || 0;
       }

@@ -61,13 +61,57 @@ BUNGIE_API_KEY=your_api_key npm start
 
 ### Exporting Data to Files
 
+The application can export Destiny 2 data to both JSON and CSV formats.
+
 ```bash
-# Export all data to ./data directory
+# Export all data to both JSON and CSV files in ./data directory
 BUNGIE_API_KEY=your_api_key npm run export
 
-# Export to a custom directory
+# Export only CSV files
+BUNGIE_API_KEY=your_api_key npm run export:csv
+
+# Export only JSON files
+BUNGIE_API_KEY=your_api_key npm run export:json
+
+# Export to a custom directory (both formats)
 BUNGIE_API_KEY=your_api_key node src/exportData.js ./my-output-dir
+
+# Export to a custom directory (CSV only)
+BUNGIE_API_KEY=your_api_key node src/exportData.js ./my-output-dir --csv-only
+
+# Export to a custom directory (JSON only)
+BUNGIE_API_KEY=your_api_key node src/exportData.js ./my-output-dir --json-only
 ```
+
+#### CSV Export Features
+
+The CSV export transforms the raw Bungie API data into a more readable format:
+- **Readable stat names**: Converts hash values to human-readable stat names (e.g., "Mobility", "Range", "Impact")
+- **Flattened structure**: Complex nested objects are flattened for easy viewing in spreadsheet applications
+- **Category-specific fields**: Each category (weapons, armor, mods, etc.) includes relevant fields
+- **Excel/ChatGPT compatible**: CSV files can be opened in Excel or used with ChatGPT for build recommendations
+
+Exported CSV files include:
+- `weapons.csv` - All weapons with stats like Impact, Range, Stability, etc.
+- `armor.csv` - All armor pieces with Mobility, Resilience, Recovery, etc.
+- `armor-mods.csv` - All armor mods with energy costs and slot information
+- `aspects.csv` - Subclass aspects
+- `fragments.csv` - Subclass fragments
+- `subclasses.csv` - All subclass items
+
+#### Using CSV Files with ChatGPT for Build Recommendations
+
+The CSV format makes it easy to get build recommendations from ChatGPT:
+
+1. Export the data to CSV files using `npm run export:csv`
+2. Open the relevant CSV file (e.g., `weapons.csv`, `armor.csv`)
+3. Upload or paste the CSV content to ChatGPT
+4. Ask for build recommendations, such as:
+   - "Based on this weapon data, what's the best loadout for PvP?"
+   - "Which armor pieces have the highest Resilience and Recovery stats?"
+   - "What armor mods should I use for a build focused on grenades?"
+
+The readable stat names and organized structure make it easy for ChatGPT to understand and analyze the data.
 
 ### Using as a Module
 
@@ -157,7 +201,10 @@ Make sure you have set the `BUNGIE_API_KEY` secret (see Configuration section ab
 # Unit tests (no API key required)
 npm test
 
-# Integration tests (API key required)
+# CSV export integration test (no API key required, uses mock data)
+node test/csvExport.integration.test.js
+
+# Integration tests with real API (API key required)
 BUNGIE_API_KEY=your_api_key npm test
 ```
 

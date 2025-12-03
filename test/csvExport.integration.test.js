@@ -1,5 +1,6 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const { exportToCSV, transformItemsForCSV } = require('../src/csvExport');
 
 /**
@@ -7,8 +8,8 @@ const { exportToCSV, transformItemsForCSV } = require('../src/csvExport');
  */
 console.log('\n=== CSV Export Integration Test ===\n');
 
-// Create a temporary test directory
-const testDir = '/tmp/csv-export-test';
+// Create a temporary test directory (cross-platform)
+const testDir = path.join(os.tmpdir(), 'csv-export-test');
 if (!fs.existsSync(testDir)) {
   fs.mkdirSync(testDir, { recursive: true });
 }

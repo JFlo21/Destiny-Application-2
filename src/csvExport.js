@@ -87,8 +87,10 @@ function transformItemForCSV(item, category) {
     transformed.defaultDamageType = item.defaultDamageType || '';
     transformed.damageTypeHashes = item.damageTypeHashes?.join(', ') || '';
   } else if (category === 'armor') {
+    // Map class type to readable name
+    const classTypes = { 0: 'Titan', 1: 'Hunter', 2: 'Warlock' };
     transformed.classType = item.classType !== undefined ? 
-      (item.classType === 0 ? 'Titan' : item.classType === 1 ? 'Hunter' : item.classType === 2 ? 'Warlock' : 'Any') : '';
+      (classTypes[item.classType] || 'Any') : '';
   } else if (category === 'armorMods') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     transformed.energyCost = item.plug?.energyCost?.energyCost || 0;

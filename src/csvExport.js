@@ -3,6 +3,12 @@ const path = require('path');
 const { json2csv } = require('json-2-csv');
 
 /**
+ * Armor 2.0 constants (duplicated from buildCrafting.js to avoid circular dependency)
+ */
+const ARMOR_2_0_PLUG_SET_HASH = 4163334830;
+const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145;
+
+/**
  * Stat type hash to name mapping
  * These are common Destiny 2 stat hashes
  */
@@ -118,8 +124,8 @@ function transformItemForCSV(item, category) {
       // Count mod sockets specifically
       const modSockets = item.sockets.socketEntries.filter(s => 
         s.socketTypeHash && (
-          s.plugSetHash === 4163334830 || // Armor 2.0 mod socket
-          s.singleInitialItemHash === 1744546145 // Stat mod socket
+          s.plugSetHash === ARMOR_2_0_PLUG_SET_HASH || // Armor 2.0 mod socket
+          s.singleInitialItemHash === ARMOR_2_0_STAT_PLUG_CATEGORY // Stat mod socket
         )
       );
       transformed.modSocketCount = modSockets.length;
@@ -169,7 +175,7 @@ function transformItemForCSV(item, category) {
   }
   
   // Add sockets information if not already added
-  if (!transformed.socketCount && item.sockets?.socketEntries) {
+  if (transformed.socketCount === undefined && item.sockets?.socketEntries) {
     transformed.socketCount = item.sockets.socketEntries.length;
   }
   

@@ -233,7 +233,7 @@ test('transformItemForCSV includes stat bonuses for mods', () => {
       energyCost: { energyCost: 3 }
     },
     investmentStats: [
-      { statTypeHash: '2996146975', value: 10 } // Mobility +10
+      { statTypeHash: 2996146975, value: 10 } // Mobility +10 (using number, not string)
     ]
   };
   

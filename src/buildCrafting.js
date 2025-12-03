@@ -217,6 +217,11 @@ async function getArmor(client) {
 }
 
 /**
+ * Armor 2.0 mod identifier patterns
+ */
+const ARMOR_2_0_MOD_IDENTIFIERS = ['v2', 'enhancements', 'armor_tier'];
+
+/**
  * Gets all armor mods from the manifest (Armor 2.0 mods only)
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of armor mod definitions
@@ -232,12 +237,10 @@ async function getArmorMods(client) {
       return true;
     }
     
-    // Also include mods with plugCategoryIdentifier containing "v2" or "enhancements"
+    // Also include mods with plugCategoryIdentifier containing Armor 2.0 patterns
     if (mod.plug && mod.plug.plugCategoryIdentifier) {
       const identifier = mod.plug.plugCategoryIdentifier.toLowerCase();
-      return identifier.includes('v2') || 
-             identifier.includes('enhancements') ||
-             identifier.includes('armor_tier');
+      return ARMOR_2_0_MOD_IDENTIFIERS.some(pattern => identifier.includes(pattern));
     }
     
     return false;
@@ -376,6 +379,7 @@ module.exports = {
   SUBCLASS_PLUG_CATEGORIES,
   ARMOR_2_0_PLUG_SET_HASH,
   ARMOR_2_0_STAT_PLUG_CATEGORY,
+  ARMOR_2_0_MOD_IDENTIFIERS,
   loadManifest,
   loadDefinitions,
   loadStatDefinitions,

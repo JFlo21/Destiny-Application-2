@@ -148,6 +148,34 @@ async function loadSeasonDefinitions(client) {
 }
 
 /**
+ * Cache for season hash to season number mapping
+ */
+let seasonHashToNumberMap = null;
+
+/**
+ * Gets mapping of season hash to season number
+ * @param {object} client - Bungie API client
+ * @returns {Promise<Map>} - Map of season hash to season number
+ */
+async function getSeasonHashToNumberMap(client) {
+  if (seasonHashToNumberMap !== null) {
+    return seasonHashToNumberMap;
+  }
+  
+  const seasonDefs = await loadSeasonDefinitions(client);
+  const seasons = Object.values(seasonDefs);
+  
+  seasonHashToNumberMap = new Map();
+  seasons.forEach(season => {
+    if (season.hash && season.seasonNumber !== undefined) {
+      seasonHashToNumberMap.set(season.hash, season.seasonNumber);
+    }
+  });
+  
+  return seasonHashToNumberMap;
+}
+
+/**
  * Gets the current season hash (Season 28 - Renegades)
  * @param {object} client - Bungie API client
  * @returns {Promise<number>} - Current season hash
@@ -335,10 +363,11 @@ function filterByCategory(items, categoryHash) {
  * - Items without a seasonHash (evergreen/core items)
  * Excludes items that are redacted (not yet released or hidden)
  * @param {object[]} items - Items to filter
- * @param {number} seasonHash - Current season hash to filter by
+ * @param {number} currentSeasonNumber - Current season number to filter by
+ * @param {Map} seasonHashToNumberMap - Map of season hash to season number
  * @returns {object[]} - Filtered items from current and previous seasons
  */
-function filterUpToCurrentSeason(items, seasonHash) {
+function filterUpToCurrentSeason(items, currentSeasonNumber, seasonHashToNumberMap) {
   return items.filter(item => {
     // Exclude redacted items (not yet released or hidden content)
     if (item.redacted) {
@@ -350,10 +379,17 @@ function filterUpToCurrentSeason(items, seasonHash) {
       return true;
     }
     
-    // Include all items with a seasonHash
-    // The Bungie API manifest typically only includes items that are currently available
-    // Sunset items are usually marked as redacted or removed from the manifest entirely
-    return true;
+    // Get the season number for this item's seasonHash
+    const itemSeasonNumber = seasonHashToNumberMap.get(item.seasonHash);
+    
+    // If we can't determine the season number, include the item
+    // (this handles cases where the mapping might be incomplete)
+    if (itemSeasonNumber === undefined) {
+      return true;
+    }
+    
+    // Include items from current season or earlier seasons
+    return itemSeasonNumber <= currentSeasonNumber;
   });
 }
 
@@ -367,8 +403,8 @@ async function getWeapons(client) {
   const allWeapons = filterByCategory(items, ITEM_CATEGORIES.WEAPON);
   
   // Filter to include all content up to current season (Season 28 - Renegades)
-  const seasonHash = await getCurrentSeasonHash(client);
-  return filterUpToCurrentSeason(allWeapons, seasonHash);
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
+  return filterUpToCurrentSeason(allWeapons, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
 }
 
 /**
@@ -406,8 +442,8 @@ async function getArmor(client) {
   const armor2_0 = allArmor.filter(item => isArmor2_0(item));
   
   // Filter to include all content up to current season (Season 28 - Renegades)
-  const seasonHash = await getCurrentSeasonHash(client);
-  return filterUpToCurrentSeason(armor2_0, seasonHash);
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
+  return filterUpToCurrentSeason(armor2_0, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
 }
 
 /**
@@ -441,8 +477,8 @@ async function getArmorMods(client) {
   });
   
   // Filter to include all content up to current season (Season 28 - Renegades)
-  const seasonHash = await getCurrentSeasonHash(client);
-  return filterUpToCurrentSeason(armor2_0Mods, seasonHash);
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
+  return filterUpToCurrentSeason(armor2_0Mods, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
 }
 
 /**
@@ -453,7 +489,7 @@ async function getArmorMods(client) {
  */
 async function getSubclassItems(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  const seasonHash = await getCurrentSeasonHash(client);
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
   
   // Get all subclass items
   const subclassItems = filterByCategory(items, ITEM_CATEGORIES.SUBCLASS);
@@ -497,10 +533,10 @@ async function getSubclassItems(client) {
   });
   
   // Filter all subclass-related items to include all content up to Season 28
-  const filteredSubclasses = filterUpToCurrentSeason(subclassItems, seasonHash);
-  const filteredAspects = filterUpToCurrentSeason(aspects, seasonHash);
-  const filteredFragments = filterUpToCurrentSeason(fragments, seasonHash);
-  const filteredAbilities = filterUpToCurrentSeason(abilities, seasonHash);
+  const filteredSubclasses = filterUpToCurrentSeason(subclassItems, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
+  const filteredAspects = filterUpToCurrentSeason(aspects, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
+  const filteredFragments = filterUpToCurrentSeason(fragments, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
+  const filteredAbilities = filterUpToCurrentSeason(abilities, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
   
   return {
     subclasses: filteredSubclasses,
@@ -550,7 +586,7 @@ async function getDamageTypes(client) {
  */
 async function getArtifactMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  const seasonHash = await getCurrentSeasonHash(client);
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
   
   // Artifact mods have specific patterns in their plug category or item type
   const allArtifactMods = Object.values(items).filter(item => {
@@ -568,7 +604,7 @@ async function getArtifactMods(client) {
   });
   
   // Filter to include all content up to current season
-  return filterUpToCurrentSeason(allArtifactMods, seasonHash);
+  return filterUpToCurrentSeason(allArtifactMods, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
 }
 
 /**
@@ -606,7 +642,8 @@ async function getChampionMods(client) {
   });
   
   // Filter to include all content up to current season
-  return filterUpToCurrentSeason(allChampionMods, seasonHash);
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
+  return filterUpToCurrentSeason(allChampionMods, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
 }
 
 /**
@@ -686,6 +723,7 @@ function clearCache() {
   definitionsCache = {};
   currentSeasonHash = null;
   currentSeasonName = null;
+  seasonHashToNumberMap = null;
 }
 
 module.exports = {
@@ -705,8 +743,8 @@ module.exports = {
   loadSeasonDefinitions,
   getCurrentSeasonHash,
   getCurrentSeasonName,
+  getSeasonHashToNumberMap,
   filterUpToCurrentSeason,
-  filterByCurrentSeason: filterUpToCurrentSeason, // Alias for backwards compatibility
   enrichItemWithStats,
   enrichItemWithPerks,
   enrichItemsWithStatNames,

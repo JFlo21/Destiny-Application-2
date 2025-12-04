@@ -148,6 +148,34 @@ async function loadSeasonDefinitions(client) {
 }
 
 /**
+ * Cache for season hash to season number mapping
+ */
+let seasonHashToNumberMap = null;
+
+/**
+ * Gets mapping of season hash to season number
+ * @param {object} client - Bungie API client
+ * @returns {Promise<Map>} - Map of season hash to season number
+ */
+async function getSeasonHashToNumberMap(client) {
+  if (seasonHashToNumberMap !== null) {
+    return seasonHashToNumberMap;
+  }
+  
+  const seasonDefs = await loadSeasonDefinitions(client);
+  const seasons = Object.values(seasonDefs);
+  
+  seasonHashToNumberMap = new Map();
+  seasons.forEach(season => {
+    if (season.hash && season.seasonNumber !== undefined) {
+      seasonHashToNumberMap.set(season.hash, season.seasonNumber);
+    }
+  });
+  
+  return seasonHashToNumberMap;
+}
+
+/**
  * Gets the current season hash (Season 28 - Renegades)
  * @param {object} client - Bungie API client
  * @returns {Promise<number>} - Current season hash
@@ -328,37 +356,55 @@ function filterByCategory(items, categoryHash) {
 }
 
 /**
- * Filters items to only include current season (Season 28 - Renegades)
- * Only returns items that have the exact seasonHash for Season 28
- * Items without a seasonHash or with a different season will be excluded
+ * Filters items to include all content up to and including current season (Season 28 - Renegades)
+ * Returns items that are currently available in the game, including:
+ * - Items from Season 28 (Renegades)
+ * - Items from previous seasons that are still available
+ * - Items without a seasonHash (evergreen/core items)
+ * Excludes items that are redacted (not yet released or hidden)
  * @param {object[]} items - Items to filter
- * @param {number} seasonHash - Season hash to filter by
- * @returns {object[]} - Filtered items from current season only
+ * @param {number} currentSeasonNumber - Current season number to filter by
+ * @param {Map} seasonHashToNumberMap - Map of season hash to season number
+ * @returns {object[]} - Filtered items from current and previous seasons
  */
-function filterByCurrentSeason(items, seasonHash) {
+function filterUpToCurrentSeason(items, currentSeasonNumber, seasonHashToNumberMap) {
   return items.filter(item => {
-    // Items must have a truthy seasonHash AND it must match the current season (strict equality)
-    // This explicitly excludes:
-    // - Items with no seasonHash property (undefined)
-    // - Items with null seasonHash
-    // - Items with 0 seasonHash
-    // - Items from different seasons
-    return item.seasonHash && item.seasonHash === seasonHash;
+    // Exclude redacted items (not yet released or hidden content)
+    if (item.redacted) {
+      return false;
+    }
+    
+    // Include items without a seasonHash (evergreen items that don't belong to any specific season)
+    if (!item.seasonHash) {
+      return true;
+    }
+    
+    // Get the season number for this item's seasonHash
+    const itemSeasonNumber = seasonHashToNumberMap.get(item.seasonHash);
+    
+    // If we can't determine the season number, include the item
+    // (this handles cases where the mapping might be incomplete)
+    if (itemSeasonNumber === undefined) {
+      return true;
+    }
+    
+    // Include items from current season or earlier seasons
+    return itemSeasonNumber <= currentSeasonNumber;
   });
 }
 
 /**
- * Gets all weapons from the manifest (current season only - Renegades)
+ * Gets all weapons from the manifest (all current content up to and including Renegades)
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of weapon definitions from current season
+ * @returns {Promise<object[]>} - Array of weapon definitions from all current seasons
  */
 async function getWeapons(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   const allWeapons = filterByCategory(items, ITEM_CATEGORIES.WEAPON);
   
-  // Filter to only current season (Season 28 - Renegades)
-  const seasonHash = await getCurrentSeasonHash(client);
-  return filterByCurrentSeason(allWeapons, seasonHash);
+  // Filter to include all content up to current season (Season 28 - Renegades)
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
+  return filterUpToCurrentSeason(allWeapons, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
 }
 
 /**
@@ -384,9 +430,9 @@ function isArmor2_0(item) {
 }
 
 /**
- * Gets all armor from the manifest (Armor 2.0 only, current season - Renegades)
+ * Gets all armor from the manifest (Armor 2.0 only, all current content up to and including Renegades)
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of armor definitions from current season
+ * @returns {Promise<object[]>} - Array of armor definitions from all current seasons
  */
 async function getArmor(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
@@ -395,9 +441,9 @@ async function getArmor(client) {
   // Filter for Armor 2.0 only (excludes legacy armor with old mod system)
   const armor2_0 = allArmor.filter(item => isArmor2_0(item));
   
-  // Filter to only current season (Season 28 - Renegades)
-  const seasonHash = await getCurrentSeasonHash(client);
-  return filterByCurrentSeason(armor2_0, seasonHash);
+  // Filter to include all content up to current season (Season 28 - Renegades)
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
+  return filterUpToCurrentSeason(armor2_0, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
 }
 
 /**
@@ -406,9 +452,9 @@ async function getArmor(client) {
 const ARMOR_2_0_MOD_IDENTIFIERS = ['v2', 'enhancements', 'armor_tier'];
 
 /**
- * Gets all armor mods from the manifest (Armor 2.0 mods only, current season - Renegades)
+ * Gets all armor mods from the manifest (Armor 2.0 mods only, all current content up to and including Renegades)
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of armor mod definitions from current season
+ * @returns {Promise<object[]>} - Array of armor mod definitions from all current seasons
  */
 async function getArmorMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
@@ -430,20 +476,20 @@ async function getArmorMods(client) {
     return false;
   });
   
-  // Filter to only current season (Season 28 - Renegades)
-  const seasonHash = await getCurrentSeasonHash(client);
-  return filterByCurrentSeason(armor2_0Mods, seasonHash);
+  // Filter to include all content up to current season (Season 28 - Renegades)
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
+  return filterUpToCurrentSeason(armor2_0Mods, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
 }
 
 /**
- * Gets subclass-related items (aspects, fragments, abilities) from current season
- * Only returns items with Season 28 hash - excludes items from previous seasons
+ * Gets subclass-related items (aspects, fragments, abilities) from all current content
+ * Returns items from all seasons up to and including Season 28
  * @param {object} client - Bungie API client
- * @returns {Promise<object>} - Object containing aspects, fragments, and abilities from Season 28
+ * @returns {Promise<object>} - Object containing aspects, fragments, and abilities from all current seasons
  */
 async function getSubclassItems(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  const seasonHash = await getCurrentSeasonHash(client);
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
   
   // Get all subclass items
   const subclassItems = filterByCategory(items, ITEM_CATEGORIES.SUBCLASS);
@@ -486,11 +532,11 @@ async function getSubclassItems(client) {
            plugCat.includes('v400.plugs.abilities');
   });
   
-  // Filter all subclass-related items to only include Season 28
-  const filteredSubclasses = filterByCurrentSeason(subclassItems, seasonHash);
-  const filteredAspects = filterByCurrentSeason(aspects, seasonHash);
-  const filteredFragments = filterByCurrentSeason(fragments, seasonHash);
-  const filteredAbilities = filterByCurrentSeason(abilities, seasonHash);
+  // Filter all subclass-related items to include all content up to Season 28
+  const filteredSubclasses = filterUpToCurrentSeason(subclassItems, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
+  const filteredAspects = filterUpToCurrentSeason(aspects, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
+  const filteredFragments = filterUpToCurrentSeason(fragments, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
+  const filteredAbilities = filterUpToCurrentSeason(abilities, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
   
   return {
     subclasses: filteredSubclasses,
@@ -533,14 +579,14 @@ async function getDamageTypes(client) {
 }
 
 /**
- * Gets artifact mods (seasonal artifact mods) - current season only
+ * Gets artifact mods (seasonal artifact mods) - all current content up to and including Renegades
  * Artifact mods are typically plugs with specific identifiers
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of artifact mod definitions from current season
+ * @returns {Promise<object[]>} - Array of artifact mod definitions from all current seasons
  */
 async function getArtifactMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  const seasonHash = await getCurrentSeasonHash(client);
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
   
   // Artifact mods have specific patterns in their plug category or item type
   const allArtifactMods = Object.values(items).filter(item => {
@@ -557,18 +603,17 @@ async function getArtifactMods(client) {
             (plugCat.includes('seasonal') && item.seasonHash));
   });
   
-  // Filter to only current season
-  return filterByCurrentSeason(allArtifactMods, seasonHash);
+  // Filter to include all content up to current season
+  return filterUpToCurrentSeason(allArtifactMods, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
 }
 
 /**
- * Gets champion mods (anti-barrier, overload, unstoppable) - current season only
+ * Gets champion mods (anti-barrier, overload, unstoppable) - all current content up to and including Renegades
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of champion mod definitions from current season
+ * @returns {Promise<object[]>} - Array of champion mod definitions from all current seasons
  */
 async function getChampionMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  const seasonHash = await getCurrentSeasonHash(client);
   
   const allChampionMods = Object.values(items).filter(item => {
     if (!item.plug) return false;
@@ -595,8 +640,9 @@ async function getChampionMods(client) {
     );
   });
   
-  // Filter to only current season
-  return filterByCurrentSeason(allChampionMods, seasonHash);
+  // Filter to include all content up to current season
+  const seasonHashToNumberMap = await getSeasonHashToNumberMap(client);
+  return filterUpToCurrentSeason(allChampionMods, CURRENT_SEASON_NUMBER, seasonHashToNumberMap);
 }
 
 /**
@@ -608,31 +654,31 @@ async function getAllBuildCraftingData(client) {
   // Get season name for logging
   const seasonName = await getCurrentSeasonName(client);
   
-  console.log(`\n=== Fetching Build Crafting Data (${seasonName} Only) ===\n`);
+  console.log(`\n=== Fetching Build Crafting Data (All Current Content up to ${seasonName}) ===\n`);
   
   const weapons = await getWeapons(client);
-  console.log(`Found ${weapons.length} weapons from ${seasonName}`);
+  console.log(`Found ${weapons.length} weapons (all current content)`);
   
   const armor = await getArmor(client);
-  console.log(`Found ${armor.length} Armor 2.0 pieces from ${seasonName}`);
+  console.log(`Found ${armor.length} Armor 2.0 pieces (all current content)`);
   
   const armorMods = await getArmorMods(client);
-  console.log(`Found ${armorMods.length} Armor 2.0 mods from ${seasonName}`);
+  console.log(`Found ${armorMods.length} Armor 2.0 mods (all current content)`);
   
   const subclassData = await getSubclassItems(client);
-  console.log(`Found ${subclassData.subclasses.length} subclasses from ${seasonName}`);
-  console.log(`Found ${subclassData.aspects.length} aspects from ${seasonName}`);
-  console.log(`Found ${subclassData.fragments.length} fragments from ${seasonName}`);
-  console.log(`Found ${subclassData.abilities.length} abilities from ${seasonName}`);
+  console.log(`Found ${subclassData.subclasses.length} subclasses (all current content)`);
+  console.log(`Found ${subclassData.aspects.length} aspects (all current content)`);
+  console.log(`Found ${subclassData.fragments.length} fragments (all current content)`);
+  console.log(`Found ${subclassData.abilities.length} abilities (all current content)`);
   
   const damageTypes = await getDamageTypes(client);
   console.log(`Found ${damageTypes.length} damage types`);
   
   const artifactMods = await getArtifactMods(client);
-  console.log(`Found ${artifactMods.length} artifact mods from ${seasonName}`);
+  console.log(`Found ${artifactMods.length} artifact mods (all current content)`);
   
   const championMods = await getChampionMods(client);
-  console.log(`Found ${championMods.length} champion mods from ${seasonName}`);
+  console.log(`Found ${championMods.length} champion mods (all current content)`);
   
   // Enrich all items with comprehensive data (stats, perks, damage types)
   console.log('\nEnriching items with comprehensive definitions...');
@@ -651,7 +697,7 @@ async function getAllBuildCraftingData(client) {
   const enemyWeaknesses = exportEnemyWeaknessData();
   console.log(`Added ${enemyWeaknesses.length} enemy weakness entries`);
   
-  console.log(`\n=== ${seasonName} Data Fetch Complete ===`);
+  console.log(`\n=== Build Crafting Data Fetch Complete (${seasonName} Compatible) ===`);
   
   return {
     weapons: enrichedWeapons,
@@ -676,6 +722,7 @@ function clearCache() {
   definitionsCache = {};
   currentSeasonHash = null;
   currentSeasonName = null;
+  seasonHashToNumberMap = null;
 }
 
 module.exports = {
@@ -695,7 +742,8 @@ module.exports = {
   loadSeasonDefinitions,
   getCurrentSeasonHash,
   getCurrentSeasonName,
-  filterByCurrentSeason,
+  getSeasonHashToNumberMap,
+  filterUpToCurrentSeason,
   enrichItemWithStats,
   enrichItemWithPerks,
   enrichItemsWithStatNames,

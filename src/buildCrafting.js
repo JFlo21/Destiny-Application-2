@@ -614,7 +614,6 @@ async function getArtifactMods(client) {
  */
 async function getChampionMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  const seasonHash = await getCurrentSeasonHash(client);
   
   const allChampionMods = Object.values(items).filter(item => {
     if (!item.plug) return false;

@@ -4,18 +4,23 @@ A Node.js application that fetches build crafting data from the Bungie API for D
 
 ## Features
 
+- **SEASON-SPECIFIC DATA:** Only fetches data from Season 28 (Renegades) released on December 2, 2025
 - Fetches weapon data from the Destiny 2 manifest with detailed stats
 - Fetches **Armor 2.0** armor data (helmets, gauntlets, chest, legs, class items)
   - Filters out legacy armor (pre-Shadowkeep)
   - Includes energy capacity and mod socket information
+  - **Only returns armor from Season 28 (Renegades)**
 - Fetches **Armor 2.0** mods with energy costs and stat bonuses
   - Excludes legacy mods from the old system
+  - **Only returns mods from Season 28 (Renegades)**
 - Fetches subclass aspects with stat modifiers
 - Fetches subclass fragments with stat bonuses/penalties
 - Fetches subclass abilities (grenades, melees, class abilities, supers)
 - **NEW:** Fetches damage type definitions with elemental weaknesses
 - **NEW:** Fetches artifact mods (seasonal artifact modifications)
+  - **Only returns artifact mods from Season 28 (Renegades)**
 - **NEW:** Fetches champion mods (anti-barrier, overload, unstoppable)
+  - **Only returns champion mods from Season 28 (Renegades)**
 - **NEW:** Includes enemy weakness reference data for all factions
   - Shield types and elemental weaknesses by enemy faction
   - Champion types and counters

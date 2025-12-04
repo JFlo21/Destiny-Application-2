@@ -416,9 +416,11 @@ async function getArmorMods(client) {
 }
 
 /**
- * Gets subclass-related items (aspects, fragments, abilities) - current season only
+ * Gets subclass-related items (aspects, fragments, abilities)
+ * Note: Subclass items are typically not season-specific, so we return all items
+ * unless they explicitly have the current season hash
  * @param {object} client - Bungie API client
- * @returns {Promise<object>} - Object containing aspects, fragments, and abilities from current season
+ * @returns {Promise<object>} - Object containing aspects, fragments, and abilities
  */
 async function getSubclassItems(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
@@ -465,12 +467,18 @@ async function getSubclassItems(client) {
            plugCat.includes('v400.plugs.abilities');
   });
   
-  // Filter all subclass-related items by current season
+  // For subclass items, only filter by season if they have a seasonHash
+  // This allows us to get new seasonal subclass items while keeping core subclass system items
+  const filteredSubclasses = filterByCurrentSeason(subclassItems, seasonHash);
+  const filteredAspects = filterByCurrentSeason(aspects, seasonHash);
+  const filteredFragments = filterByCurrentSeason(fragments, seasonHash);
+  const filteredAbilities = filterByCurrentSeason(abilities, seasonHash);
+  
   return {
-    subclasses: filterByCurrentSeason(subclassItems, seasonHash),
-    aspects: filterByCurrentSeason(aspects, seasonHash),
-    fragments: filterByCurrentSeason(fragments, seasonHash),
-    abilities: filterByCurrentSeason(abilities, seasonHash)
+    subclasses: filteredSubclasses,
+    aspects: filteredAspects,
+    fragments: filteredFragments,
+    abilities: filteredAbilities
   };
 }
 
@@ -579,31 +587,31 @@ async function getChampionMods(client) {
  * @returns {Promise<object>} - Object containing all build crafting data
  */
 async function getAllBuildCraftingData(client) {
-  console.log('\n=== Fetching Build Crafting Data ===\n');
+  console.log('\n=== Fetching Build Crafting Data (Season 28 - Renegades Only) ===\n');
   
   const weapons = await getWeapons(client);
-  console.log(`Found ${weapons.length} weapons`);
+  console.log(`Found ${weapons.length} weapons from Season 28 (Renegades)`);
   
   const armor = await getArmor(client);
-  console.log(`Found ${armor.length} Armor 2.0 pieces`);
+  console.log(`Found ${armor.length} Armor 2.0 pieces from Season 28 (Renegades)`);
   
   const armorMods = await getArmorMods(client);
-  console.log(`Found ${armorMods.length} Armor 2.0 mods`);
+  console.log(`Found ${armorMods.length} Armor 2.0 mods from Season 28 (Renegades)`);
   
   const subclassData = await getSubclassItems(client);
-  console.log(`Found ${subclassData.subclasses.length} subclasses`);
-  console.log(`Found ${subclassData.aspects.length} aspects`);
-  console.log(`Found ${subclassData.fragments.length} fragments`);
-  console.log(`Found ${subclassData.abilities.length} abilities`);
+  console.log(`Found ${subclassData.subclasses.length} subclasses from Season 28 (Renegades)`);
+  console.log(`Found ${subclassData.aspects.length} aspects from Season 28 (Renegades)`);
+  console.log(`Found ${subclassData.fragments.length} fragments from Season 28 (Renegades)`);
+  console.log(`Found ${subclassData.abilities.length} abilities from Season 28 (Renegades)`);
   
   const damageTypes = await getDamageTypes(client);
   console.log(`Found ${damageTypes.length} damage types`);
   
   const artifactMods = await getArtifactMods(client);
-  console.log(`Found ${artifactMods.length} artifact mods`);
+  console.log(`Found ${artifactMods.length} artifact mods from Season 28 (Renegades)`);
   
   const championMods = await getChampionMods(client);
-  console.log(`Found ${championMods.length} champion mods`);
+  console.log(`Found ${championMods.length} champion mods from Season 28 (Renegades)`);
   
   // Enrich all items with comprehensive data (stats, perks, damage types)
   console.log('\nEnriching items with comprehensive definitions...');
@@ -621,6 +629,8 @@ async function getAllBuildCraftingData(client) {
   console.log('\nAdding enemy weakness reference data...');
   const enemyWeaknesses = exportEnemyWeaknessData();
   console.log(`Added ${enemyWeaknesses.length} enemy weakness entries`);
+  
+  console.log('\n=== Season 28 (Renegades) Data Fetch Complete ===');
   
   return {
     weapons: enrichedWeapons,

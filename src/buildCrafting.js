@@ -316,13 +316,16 @@ function filterByCategory(items, categoryHash) {
 
 /**
  * Filters items to only include current season (Season 28 - Renegades)
+ * Only returns items that have the exact seasonHash for Season 28
+ * Items without a seasonHash or with a different season will be excluded
  * @param {object[]} items - Items to filter
  * @param {number} seasonHash - Season hash to filter by
- * @returns {object[]} - Filtered items from current season
+ * @returns {object[]} - Filtered items from current season only
  */
 function filterByCurrentSeason(items, seasonHash) {
   return items.filter(item => {
-    // Items must have the current season hash
+    // Items must have the current season hash (strict equality)
+    // This excludes items with no seasonHash, null, 0, or different seasons
     return item.seasonHash === seasonHash;
   });
 }
@@ -416,11 +419,10 @@ async function getArmorMods(client) {
 }
 
 /**
- * Gets subclass-related items (aspects, fragments, abilities)
- * Note: Subclass items are typically not season-specific, so we return all items
- * unless they explicitly have the current season hash
+ * Gets subclass-related items (aspects, fragments, abilities) from current season
+ * Only returns items with Season 28 hash - excludes items from previous seasons
  * @param {object} client - Bungie API client
- * @returns {Promise<object>} - Object containing aspects, fragments, and abilities
+ * @returns {Promise<object>} - Object containing aspects, fragments, and abilities from Season 28
  */
 async function getSubclassItems(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
@@ -467,8 +469,7 @@ async function getSubclassItems(client) {
            plugCat.includes('v400.plugs.abilities');
   });
   
-  // For subclass items, only filter by season if they have a seasonHash
-  // This allows us to get new seasonal subclass items while keeping core subclass system items
+  // Filter all subclass-related items to only include Season 28
   const filteredSubclasses = filterByCurrentSeason(subclassItems, seasonHash);
   const filteredAspects = filterByCurrentSeason(aspects, seasonHash);
   const filteredFragments = filterByCurrentSeason(fragments, seasonHash);

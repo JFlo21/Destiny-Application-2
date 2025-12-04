@@ -333,21 +333,26 @@ function filterByCategory(items, categoryHash) {
  * - Items from Season 28 (Renegades)
  * - Items from previous seasons that are still available
  * - Items without a seasonHash (evergreen/core items)
+ * Excludes items that are redacted (not yet released or hidden)
  * @param {object[]} items - Items to filter
  * @param {number} seasonHash - Current season hash to filter by
  * @returns {object[]} - Filtered items from current and previous seasons
  */
 function filterUpToCurrentSeason(items, seasonHash) {
   return items.filter(item => {
+    // Exclude redacted items (not yet released or hidden content)
+    if (item.redacted) {
+      return false;
+    }
+    
     // Include items without a seasonHash (evergreen items that don't belong to any specific season)
     if (!item.seasonHash) {
       return true;
     }
     
-    // Include items from current season or earlier
-    // Note: We can't easily determine the exact season number from hash alone,
-    // so we include all items with a seasonHash since most sunset items are removed
-    // from the manifest or have specific flags set
+    // Include all items with a seasonHash
+    // The Bungie API manifest typically only includes items that are currently available
+    // Sunset items are usually marked as redacted or removed from the manifest entirely
     return true;
   });
 }

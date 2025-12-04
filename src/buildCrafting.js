@@ -78,6 +78,7 @@ const CURRENT_SEASON_NUMBER = 28; // Renegades season
 let manifestCache = null;
 let definitionsCache = {};
 let currentSeasonHash = null;
+let currentSeasonName = null;
 
 /**
  * Loads the manifest and caches it
@@ -159,17 +160,29 @@ async function getCurrentSeasonHash(client) {
   const seasonDefs = await loadSeasonDefinitions(client);
   const seasons = Object.values(seasonDefs);
   
-  // Find Season 28 (Renegades)
+  // Find the current season by number
   const currentSeason = seasons.find(s => s.seasonNumber === CURRENT_SEASON_NUMBER);
   
   if (!currentSeason) {
-    throw new Error(`Season ${CURRENT_SEASON_NUMBER} (Renegades) not found in manifest`);
+    throw new Error(`Season ${CURRENT_SEASON_NUMBER} not found in manifest`);
   }
   
   currentSeasonHash = currentSeason.hash;
-  console.log(`Current season (${CURRENT_SEASON_NUMBER} - Renegades) hash: ${currentSeasonHash}`);
+  currentSeasonName = currentSeason.displayProperties?.name || `Season ${CURRENT_SEASON_NUMBER}`;
+  console.log(`Current season: ${currentSeasonName} (Season ${CURRENT_SEASON_NUMBER}, hash: ${currentSeasonHash})`);
   
   return currentSeasonHash;
+}
+
+/**
+ * Gets the current season name
+ * @param {object} client - Bungie API client
+ * @returns {Promise<string>} - Current season name
+ */
+async function getCurrentSeasonName(client) {
+  // Ensure season data is loaded
+  await getCurrentSeasonHash(client);
+  return currentSeasonName || `Season ${CURRENT_SEASON_NUMBER}`;
 }
 
 /**
@@ -588,31 +601,34 @@ async function getChampionMods(client) {
  * @returns {Promise<object>} - Object containing all build crafting data
  */
 async function getAllBuildCraftingData(client) {
-  console.log('\n=== Fetching Build Crafting Data (Season 28 - Renegades Only) ===\n');
+  // Get season name for logging
+  const seasonName = await getCurrentSeasonName(client);
+  
+  console.log(`\n=== Fetching Build Crafting Data (${seasonName} Only) ===\n`);
   
   const weapons = await getWeapons(client);
-  console.log(`Found ${weapons.length} weapons from Season 28 (Renegades)`);
+  console.log(`Found ${weapons.length} weapons from ${seasonName}`);
   
   const armor = await getArmor(client);
-  console.log(`Found ${armor.length} Armor 2.0 pieces from Season 28 (Renegades)`);
+  console.log(`Found ${armor.length} Armor 2.0 pieces from ${seasonName}`);
   
   const armorMods = await getArmorMods(client);
-  console.log(`Found ${armorMods.length} Armor 2.0 mods from Season 28 (Renegades)`);
+  console.log(`Found ${armorMods.length} Armor 2.0 mods from ${seasonName}`);
   
   const subclassData = await getSubclassItems(client);
-  console.log(`Found ${subclassData.subclasses.length} subclasses from Season 28 (Renegades)`);
-  console.log(`Found ${subclassData.aspects.length} aspects from Season 28 (Renegades)`);
-  console.log(`Found ${subclassData.fragments.length} fragments from Season 28 (Renegades)`);
-  console.log(`Found ${subclassData.abilities.length} abilities from Season 28 (Renegades)`);
+  console.log(`Found ${subclassData.subclasses.length} subclasses from ${seasonName}`);
+  console.log(`Found ${subclassData.aspects.length} aspects from ${seasonName}`);
+  console.log(`Found ${subclassData.fragments.length} fragments from ${seasonName}`);
+  console.log(`Found ${subclassData.abilities.length} abilities from ${seasonName}`);
   
   const damageTypes = await getDamageTypes(client);
   console.log(`Found ${damageTypes.length} damage types`);
   
   const artifactMods = await getArtifactMods(client);
-  console.log(`Found ${artifactMods.length} artifact mods from Season 28 (Renegades)`);
+  console.log(`Found ${artifactMods.length} artifact mods from ${seasonName}`);
   
   const championMods = await getChampionMods(client);
-  console.log(`Found ${championMods.length} champion mods from Season 28 (Renegades)`);
+  console.log(`Found ${championMods.length} champion mods from ${seasonName}`);
   
   // Enrich all items with comprehensive data (stats, perks, damage types)
   console.log('\nEnriching items with comprehensive definitions...');
@@ -631,7 +647,7 @@ async function getAllBuildCraftingData(client) {
   const enemyWeaknesses = exportEnemyWeaknessData();
   console.log(`Added ${enemyWeaknesses.length} enemy weakness entries`);
   
-  console.log('\n=== Season 28 (Renegades) Data Fetch Complete ===');
+  console.log(`\n=== ${seasonName} Data Fetch Complete ===`);
   
   return {
     weapons: enrichedWeapons,
@@ -655,6 +671,7 @@ function clearCache() {
   manifestCache = null;
   definitionsCache = {};
   currentSeasonHash = null;
+  currentSeasonName = null;
 }
 
 module.exports = {
@@ -673,6 +690,7 @@ module.exports = {
   loadDamageTypeDefinitions,
   loadSeasonDefinitions,
   getCurrentSeasonHash,
+  getCurrentSeasonName,
   filterByCurrentSeason,
   enrichItemWithStats,
   enrichItemWithPerks,

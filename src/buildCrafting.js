@@ -337,9 +337,13 @@ function filterByCategory(items, categoryHash) {
  */
 function filterByCurrentSeason(items, seasonHash) {
   return items.filter(item => {
-    // Items must have the current season hash (strict equality)
-    // This excludes items with no seasonHash, null, 0, or different seasons
-    return item.seasonHash === seasonHash;
+    // Items must have a truthy seasonHash AND it must match the current season (strict equality)
+    // This explicitly excludes:
+    // - Items with no seasonHash property (undefined)
+    // - Items with null seasonHash
+    // - Items with 0 seasonHash
+    // - Items from different seasons
+    return item.seasonHash && item.seasonHash === seasonHash;
   });
 }
 

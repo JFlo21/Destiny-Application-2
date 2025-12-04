@@ -449,16 +449,16 @@ async function getArtifactMods(client) {
   // Artifact mods have specific patterns in their plug category or item type
   return Object.values(items).filter(item => {
     if (!item.plug) return false;
+    if (!item.displayProperties?.name) return false; // Filter out unnamed items
     
     const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
     
     // Artifact mods typically have "artifact" in their identifier or type
-    // They also have seasonal characteristics
+    // More specific filtering to avoid false positives
     return (plugCat.includes('artifact') || 
             itemType.includes('artifact') ||
-            (item.seasonHash && item.plug.plugCategoryHash)) &&
-           item.displayProperties?.name; // Filter out unnamed items
+            (plugCat.includes('seasonal') && item.seasonHash));
   });
 }
 
@@ -472,19 +472,27 @@ async function getChampionMods(client) {
   
   return Object.values(items).filter(item => {
     if (!item.plug) return false;
+    if (!item.itemCategoryHashes || !item.itemCategoryHashes.includes(ITEM_CATEGORIES.ARMOR_MODS)) {
+      return false;
+    }
     
     const name = item.displayProperties?.name?.toLowerCase() || '';
     const description = item.displayProperties?.description?.toLowerCase() || '';
     
-    // Champion mods have "barrier", "overload", or "unstoppable" in name or description
-    return (name.includes('barrier') || 
-            name.includes('overload') || 
-            name.includes('unstoppable') ||
-            description.includes('barrier') ||
-            description.includes('overload') ||
-            description.includes('unstoppable')) &&
-           item.itemCategoryHashes && 
-           item.itemCategoryHashes.includes(ITEM_CATEGORIES.ARMOR_MODS);
+    // Champion mods have specific prefixes or terms in name or description
+    // Use more specific patterns to avoid false positives
+    const championPatterns = [
+      'anti-barrier',
+      'overload',
+      'unstoppable',
+      'pierce barrier',
+      'disrupt overload',
+      'stagger unstoppable'
+    ];
+    
+    return championPatterns.some(pattern => 
+      name.includes(pattern) || description.includes(pattern)
+    );
   });
 }
 

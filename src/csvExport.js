@@ -194,6 +194,27 @@ function transformItemForCSV(item, category, statDefs = null) {
       }).join(', ');
       transformed.stats = stats;
     }
+  } else if (category === 'damageTypes') {
+    // Special handling for damage types
+    transformed.enumValue = item.enumValue || '';
+    transformed.transparentIconPath = item.transparentIconPath ? `https://www.bungie.net${item.transparentIconPath}` : '';
+    transformed.showIcon = item.showIcon || false;
+    transformed.color = item.color ? JSON.stringify(item.color) : '';
+  } else if (category === 'artifactMods' || category === 'championMods') {
+    // Special handling for artifact and champion mods
+    transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
+    transformed.energyCost = item.plug?.energyCost?.energyCost || 0;
+    transformed.energyType = item.plug?.energyCost?.energyTypeHash || '';
+    transformed.seasonHash = item.seasonHash || '';
+    
+    // Add investment stats if available
+    if (item.investmentStats && item.investmentStats.length > 0) {
+      const statBonuses = item.investmentStats.map(stat => {
+        const statName = resolveStatName(stat.statTypeHash, statDefs);
+        return `${statName}: ${stat.value > 0 ? '+' : ''}${stat.value}`;
+      }).join(', ');
+      transformed.statBonuses = statBonuses;
+    }
   }
   
   // Add enriched perks if available (with names and descriptions)

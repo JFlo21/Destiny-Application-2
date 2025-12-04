@@ -16,6 +16,11 @@ A Node.js application that fetches build crafting data from the Bungie API for D
 - **NEW:** Fetches damage type definitions with elemental weaknesses
 - **NEW:** Fetches artifact mods (seasonal artifact modifications)
 - **NEW:** Fetches champion mods (anti-barrier, overload, unstoppable)
+- **NEW:** Includes enemy weakness reference data for all factions
+  - Shield types and elemental weaknesses by enemy faction
+  - Champion types and counters
+  - Damage effectiveness multipliers
+  - **Includes Barant Imperium faction from Renegades expansion**
 - **NEW:** Resolves perk hashes to human-readable names and descriptions
 - **NEW:** Includes intrinsic weapon/armor traits and perks
 - **Resolves stat hashes to human-readable names** using DestinyStatDefinition
@@ -139,6 +144,7 @@ Exported files include:
 - `damage-types.csv/xlsx/json` - **NEW:** All damage types with elemental information
 - `artifact-mods.csv/xlsx/json` - **NEW:** Seasonal artifact mods
 - `champion-mods.csv/xlsx/json` - **NEW:** Champion mods (anti-barrier, overload, unstoppable)
+- `enemy-weaknesses.csv/xlsx/json` - **NEW:** Enemy faction shield types and elemental weaknesses
 - `subclasses.csv/xlsx` - All subclass items
 - `destiny2-build-data-master.xlsx` - Master Excel file with all categories in separate worksheets
 
@@ -165,10 +171,11 @@ To export to Google Sheets, you need a Google service account with Google Sheets
 **For detailed instructions, see [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md)**
 
 The Google Sheets export creates a new spreadsheet with:
-- All categories in separate worksheets (weapons, armor, mods, aspects, fragments, abilities, damage types, artifact mods, champion mods)
+- All categories in separate worksheets (weapons, armor, mods, aspects, fragments, abilities, damage types, artifact mods, champion mods, enemy weaknesses)
 - Formatted headers with bold text and background color
 - Frozen header row for easy navigation
 - Resolved perk names and damage type information
+- Enemy weakness reference data for build planning
 - Shareable link that you can distribute to your team or community
 
 #### Using Exported Data with ChatGPT for Build Recommendations
@@ -186,8 +193,10 @@ The exported data makes it easy to get build recommendations from ChatGPT:
    - "Analyze this data and suggest the best PvE build for a Warlock"
    - "What are the best weapon perks for a Solar build?"
    - "Which artifact mods complement a champion-focused build?"
+   - "Based on enemy weaknesses, what weapon damage types should I use against the Barant Imperium faction?"
+   - "What's the optimal loadout for fighting Vex with Void shields?"
 
-The readable perk names, damage types, stat names, and organized structure make it easy for ChatGPT to understand and analyze the data for comprehensive build recommendations.
+The readable perk names, damage types, enemy weakness data, stat names, and organized structure make it easy for ChatGPT to understand and analyze the data for comprehensive build recommendations.
 
 
 ### Using as a Module

@@ -194,11 +194,56 @@ function transformItemForCSV(item, category, statDefs = null) {
       }).join(', ');
       transformed.stats = stats;
     }
+  } else if (category === 'damageTypes') {
+    // Special handling for damage types
+    transformed.enumValue = item.enumValue || '';
+    transformed.transparentIconPath = item.transparentIconPath ? `https://www.bungie.net${item.transparentIconPath}` : '';
+    transformed.showIcon = item.showIcon || false;
+    transformed.color = item.color ? JSON.stringify(item.color) : '';
+  } else if (category === 'artifactMods' || category === 'championMods') {
+    // Special handling for artifact and champion mods
+    transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
+    transformed.energyCost = item.plug?.energyCost?.energyCost || 0;
+    transformed.energyType = item.plug?.energyCost?.energyTypeHash || '';
+    transformed.seasonHash = item.seasonHash || '';
+    
+    // Add investment stats if available
+    if (item.investmentStats && item.investmentStats.length > 0) {
+      const statBonuses = item.investmentStats.map(stat => {
+        const statName = resolveStatName(stat.statTypeHash, statDefs);
+        return `${statName}: ${stat.value > 0 ? '+' : ''}${stat.value}`;
+      }).join(', ');
+      transformed.statBonuses = statBonuses;
+    }
   }
   
-  // Add perks if available
-  if (item.perks && item.perks.length > 0) {
+  // Add enriched perks if available (with names and descriptions)
+  if (item.enrichedPerks && item.enrichedPerks.length > 0) {
+    transformed.perkNames = item.enrichedPerks
+      .filter(p => p.isDisplayable)
+      .map(p => p.name)
+      .join(', ');
+    transformed.perkDescriptions = item.enrichedPerks
+      .filter(p => p.isDisplayable)
+      .map(p => `${p.name}: ${p.description}`)
+      .join(' | ');
+  } else if (item.perks && item.perks.length > 0) {
+    // Fallback to hash if enriched perks not available
     transformed.perks = item.perks.map(p => p.perkHash).join(', ');
+  }
+  
+  // Add enriched damage type if available
+  if (item.enrichedDamageType) {
+    transformed.damageTypeName = item.enrichedDamageType.name;
+    transformed.damageTypeDescription = item.enrichedDamageType.description;
+  }
+  
+  // Add intrinsic perk information (first socket typically contains intrinsic trait)
+  if (item.sockets?.socketEntries && item.sockets.socketEntries.length > 0) {
+    const intrinsicSocket = item.sockets.socketEntries[0];
+    if (intrinsicSocket?.singleInitialItemHash) {
+      transformed.intrinsicPerkHash = intrinsicSocket.singleInitialItemHash;
+    }
   }
   
   // Add sockets information if not already added
@@ -263,7 +308,11 @@ function exportAllToCSV(buildData, outputDir, statDefs = null) {
     { name: 'subclasses', data: buildData.subclasses, category: 'subclasses' },
     { name: 'aspects', data: buildData.aspects, category: 'aspects' },
     { name: 'fragments', data: buildData.fragments, category: 'fragments' },
-    { name: 'abilities', data: buildData.abilities, category: 'abilities' }
+    { name: 'abilities', data: buildData.abilities, category: 'abilities' },
+    { name: 'damage-types', data: buildData.damageTypes, category: 'damageTypes' },
+    { name: 'artifact-mods', data: buildData.artifactMods, category: 'artifactMods' },
+    { name: 'champion-mods', data: buildData.championMods, category: 'championMods' },
+    { name: 'enemy-weaknesses', data: buildData.enemyWeaknesses, category: 'enemyWeaknesses' }
   ];
   
   for (const { name, data, category } of exports) {

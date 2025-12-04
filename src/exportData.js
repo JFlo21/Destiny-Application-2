@@ -53,13 +53,19 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
         { name: 'subclasses', data: buildData.subclasses },
         { name: 'aspects', data: buildData.aspects },
         { name: 'fragments', data: buildData.fragments },
-        { name: 'abilities', data: buildData.abilities }
+        { name: 'abilities', data: buildData.abilities },
+        { name: 'damage-types', data: buildData.damageTypes },
+        { name: 'artifact-mods', data: buildData.artifactMods },
+        { name: 'champion-mods', data: buildData.championMods },
+        { name: 'enemy-weaknesses', data: buildData.enemyWeaknesses }
       ];
       
       for (const { name, data } of exports) {
-        const filename = path.join(outputDir, `${name}.json`);
-        fs.writeFileSync(filename, JSON.stringify(data, null, 2));
-        console.log(`Exported ${data.length} ${name} to ${filename}`);
+        if (data && data.length > 0) {
+          const filename = path.join(outputDir, `${name}.json`);
+          fs.writeFileSync(filename, JSON.stringify(data, null, 2));
+          console.log(`Exported ${data.length} ${name} to ${filename}`);
+        }
       }
     }
     
@@ -131,7 +137,11 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
         subclasses: buildData.subclasses.length,
         aspects: buildData.aspects.length,
         fragments: buildData.fragments.length,
-        abilities: buildData.abilities.length
+        abilities: buildData.abilities.length,
+        damageTypes: buildData.damageTypes.length,
+        artifactMods: buildData.artifactMods.length,
+        championMods: buildData.championMods.length,
+        enemyWeaknesses: buildData.enemyWeaknesses.length
       }
     };
     

@@ -88,7 +88,11 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
       { name: 'Subclasses', data: buildData.subclasses, category: 'subclasses' },
       { name: 'Aspects', data: buildData.aspects, category: 'aspects' },
       { name: 'Fragments', data: buildData.fragments, category: 'fragments' },
-      { name: 'Abilities', data: buildData.abilities, category: 'abilities' }
+      { name: 'Abilities', data: buildData.abilities, category: 'abilities' },
+      { name: 'Damage Types', data: buildData.damageTypes, category: 'damageTypes' },
+      { name: 'Artifact Mods', data: buildData.artifactMods, category: 'artifactMods' },
+      { name: 'Champion Mods', data: buildData.championMods, category: 'championMods' },
+      { name: 'Enemy Weaknesses', data: buildData.enemyWeaknesses, category: 'enemyWeaknesses' }
     ];
     
     // First, rename the default sheet and add other sheets

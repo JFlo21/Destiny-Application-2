@@ -13,9 +13,20 @@ A Node.js application that fetches build crafting data from the Bungie API for D
 - Fetches subclass aspects with stat modifiers
 - Fetches subclass fragments with stat bonuses/penalties
 - Fetches subclass abilities (grenades, melees, class abilities, supers)
+- **NEW:** Fetches damage type definitions with elemental weaknesses
+- **NEW:** Fetches artifact mods (seasonal artifact modifications)
+- **NEW:** Fetches champion mods (anti-barrier, overload, unstoppable)
+- **NEW:** Includes enemy weakness reference data for all factions
+  - Shield types and elemental weaknesses by enemy faction
+  - Champion types and counters
+  - Damage effectiveness multipliers
+  - **Includes Barant Imperium faction from Renegades expansion**
+- **NEW:** Resolves perk hashes to human-readable names and descriptions
+- **NEW:** Includes intrinsic weapon/armor traits and perks
 - **Resolves stat hashes to human-readable names** using DestinyStatDefinition
 - Displays **actual numeric stat values** for easy build crafting
 - Caches manifest data to minimize API calls
+- **Compatible with Destiny 2: Renegades expansion (December 2, 2025)**
 
 ## Installation
 
@@ -109,11 +120,14 @@ BUNGIE_API_KEY=your_api_key node src/exportData.js ./my-output-dir --json-only
 All export formats transform the raw Bungie API data into a more readable format with these features:
 
 - **Readable stat names**: Automatically resolves **ALL** stat hashes to human-readable names using DestinyStatDefinition (e.g., "Mobility", "Range", "Impact") - no more hash numbers!
+- **Readable perk names**: Resolves perk hashes to human-readable names and descriptions using DestinySandboxPerkDefinition
+- **Damage type information**: Includes resolved damage type names (Arc, Solar, Void, Stasis, Strand, Kinetic) with descriptions
 - **Actual numeric values**: Shows the exact stat values for weapons and armor, not just hashes
 - **Armor 2.0 focused**: Only exports Armor 2.0 items with energy capacity and mod slots
 - **Detailed stat bonuses**: Shows stat bonuses/penalties from mods, fragments, and aspects as readable text (e.g., "Mobility: +10")
 - **Energy system info**: Includes energy capacity and type for armor pieces
 - **Socket information**: Shows number of sockets and mod slots available
+- **Intrinsic perks**: Includes intrinsic weapon/armor traits and perks
 - **Flattened structure**: Complex nested objects are flattened for easy viewing in spreadsheet applications
 - **Category-specific fields**: Each category (weapons, armor, mods, etc.) includes relevant fields
 - **Excel/ChatGPT/Google Sheets compatible**: All formats can be opened in Excel, uploaded to ChatGPT, or shared via Google Sheets for build recommendations
@@ -121,12 +135,16 @@ All export formats transform the raw Bungie API data into a more readable format
 #### Available Export Files
 
 Exported files include:
-- `weapons.csv/xlsx` - All weapons with stats like Impact, Range, Stability, etc.
-- `armor.csv/xlsx` - All **Armor 2.0** pieces with Mobility, Resilience, Recovery, energy capacity, etc.
-- `armor-mods.csv/xlsx` - All **Armor 2.0** mods with energy costs, slot information, and stat bonuses
-- `aspects.csv/xlsx` - Subclass aspects with stat modifiers
-- `fragments.csv/xlsx` - Subclass fragments with stat bonuses/penalties
-- `abilities.csv/xlsx` - Subclass abilities (grenades, melees, class abilities, supers)
+- `weapons.csv/xlsx/json` - All weapons with stats like Impact, Range, Stability, perk names, damage types, etc.
+- `armor.csv/xlsx/json` - All **Armor 2.0** pieces with Mobility, Resilience, Recovery, energy capacity, perks, etc.
+- `armor-mods.csv/xlsx/json` - All **Armor 2.0** mods with energy costs, slot information, and stat bonuses
+- `aspects.csv/xlsx/json` - Subclass aspects with stat modifiers and perks
+- `fragments.csv/xlsx/json` - Subclass fragments with stat bonuses/penalties
+- `abilities.csv/xlsx/json` - Subclass abilities (grenades, melees, class abilities, supers)
+- `damage-types.csv/xlsx/json` - **NEW:** All damage types with elemental information
+- `artifact-mods.csv/xlsx/json` - **NEW:** Seasonal artifact mods
+- `champion-mods.csv/xlsx/json` - **NEW:** Champion mods (anti-barrier, overload, unstoppable)
+- `enemy-weaknesses.csv/xlsx/json` - **NEW:** Enemy faction shield types and elemental weaknesses
 - `subclasses.csv/xlsx` - All subclass items
 - `destiny2-build-data-master.xlsx` - Master Excel file with all categories in separate worksheets
 
@@ -153,9 +171,11 @@ To export to Google Sheets, you need a Google service account with Google Sheets
 **For detailed instructions, see [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md)**
 
 The Google Sheets export creates a new spreadsheet with:
-- All categories in separate worksheets
+- All categories in separate worksheets (weapons, armor, mods, aspects, fragments, abilities, damage types, artifact mods, champion mods, enemy weaknesses)
 - Formatted headers with bold text and background color
 - Frozen header row for easy navigation
+- Resolved perk names and damage type information
+- Enemy weakness reference data for build planning
 - Shareable link that you can distribute to your team or community
 
 #### Using Exported Data with ChatGPT for Build Recommendations
@@ -167,24 +187,28 @@ The exported data makes it easy to get build recommendations from ChatGPT:
 3. For Google Sheets: Share the spreadsheet link with ChatGPT or copy specific data
 4. Upload or paste the data to ChatGPT
 5. Ask for build recommendations, such as:
-   - "Based on this weapon data, what's the best loadout for PvP?"
+   - "Based on this weapon data with perks, what's the best loadout for PvP?"
    - "Which armor pieces have the highest Resilience and Recovery stats?"
    - "What armor mods should I use for a build focused on grenades?"
    - "Analyze this data and suggest the best PvE build for a Warlock"
+   - "What are the best weapon perks for a Solar build?"
+   - "Which artifact mods complement a champion-focused build?"
+   - "Based on enemy weaknesses, what weapon damage types should I use against the Barant Imperium faction?"
+   - "What's the optimal loadout for fighting Vex with Void shields?"
 
-The readable stat names and organized structure make it easy for ChatGPT to understand and analyze the data for comprehensive build recommendations.
+The readable perk names, damage types, enemy weakness data, stat names, and organized structure make it easy for ChatGPT to understand and analyze the data for comprehensive build recommendations.
 
 
 ### Using as a Module
 
 ```javascript
 const { createBungieClient } = require('./src/bungieClient');
-const { getAllBuildCraftingData, getWeapons, getArmor, getArmorMods, getAspects, getFragments } = require('./src/buildCrafting');
+const { getAllBuildCraftingData, getWeapons, getArmor, getArmorMods, getAspects, getFragments, getDamageTypes, getArtifactMods, getChampionMods } = require('./src/buildCrafting');
 
 async function example() {
   const client = createBungieClient('your-api-key');
   
-  // Get all build crafting data at once
+  // Get all build crafting data at once (includes perks, damage types, artifact mods, etc.)
   const buildData = await getAllBuildCraftingData(client);
   
   // Or fetch specific categories
@@ -193,6 +217,9 @@ async function example() {
   const mods = await getArmorMods(client);
   const aspects = await getAspects(client);
   const fragments = await getFragments(client);
+  const damageTypes = await getDamageTypes(client);
+  const artifactMods = await getArtifactMods(client);
+  const championMods = await getChampionMods(client);
 }
 ```
 

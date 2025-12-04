@@ -1,4 +1,5 @@
 const { getManifest, downloadManifestComponent, getDefinitionPath } = require('./manifest');
+const { exportEnemyWeaknessData } = require('./enemyWeaknesses');
 
 /**
  * Item categories for filtering
@@ -112,6 +113,24 @@ async function loadStatDefinitions(client) {
 }
 
 /**
+ * Loads perk definitions for resolving perk hashes
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object>} - Perk definitions (DestinySandboxPerkDefinition)
+ */
+async function loadPerkDefinitions(client) {
+  return await loadDefinitions(client, 'DestinySandboxPerkDefinition');
+}
+
+/**
+ * Loads damage type definitions
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object>} - Damage type definitions
+ */
+async function loadDamageTypeDefinitions(client) {
+  return await loadDefinitions(client, 'DestinyDamageTypeDefinition');
+}
+
+/**
  * Enrich item with resolved stat names and values
  * @param {object} item - Item to enrich
  * @param {object} statDefs - Stat definitions
@@ -149,6 +168,69 @@ function enrichItemWithStats(item, statDefs) {
 }
 
 /**
+ * Enrich item with resolved perk information
+ * @param {object} item - Item to enrich
+ * @param {object} perkDefs - Perk definitions
+ * @param {object} damageTypeDefs - Damage type definitions
+ * @returns {object} - Item with enriched perks
+ */
+function enrichItemWithPerks(item, perkDefs, damageTypeDefs) {
+  const enrichedPerks = [];
+  
+  // Extract perks from the item
+  if (item.perks && item.perks.length > 0) {
+    for (const perk of item.perks) {
+      const perkDef = perkDefs[perk.perkHash];
+      if (perkDef) {
+        enrichedPerks.push({
+          hash: perk.perkHash,
+          name: perkDef.displayProperties?.name || `Unknown_${perk.perkHash}`,
+          description: perkDef.displayProperties?.description || '',
+          icon: perkDef.displayProperties?.icon ? `https://www.bungie.net${perkDef.displayProperties.icon}` : '',
+          isDisplayable: perkDef.isDisplayable || false
+        });
+      }
+    }
+  }
+  
+  // Extract sockets/plugs for more detailed perk information
+  const enrichedSockets = [];
+  if (item.sockets && item.sockets.socketEntries) {
+    for (const socket of item.sockets.socketEntries) {
+      if (socket.singleInitialItemHash) {
+        const socketData = {
+          socketTypeHash: socket.socketTypeHash,
+          singleInitialItemHash: socket.singleInitialItemHash,
+          reusablePlugSetHash: socket.reusablePlugSetHash
+        };
+        enrichedSockets.push(socketData);
+      }
+    }
+  }
+  
+  // Enrich damage types if available
+  let enrichedDamageType = null;
+  if (item.defaultDamageType && damageTypeDefs) {
+    const damageTypeDef = damageTypeDefs[item.defaultDamageType];
+    if (damageTypeDef) {
+      enrichedDamageType = {
+        hash: item.defaultDamageType,
+        name: damageTypeDef.displayProperties?.name || `Unknown_${item.defaultDamageType}`,
+        description: damageTypeDef.displayProperties?.description || '',
+        enumValue: damageTypeDef.enumValue
+      };
+    }
+  }
+  
+  return {
+    ...item,
+    enrichedPerks,
+    enrichedSockets,
+    enrichedDamageType
+  };
+}
+
+/**
  * Enrich items with stat definitions
  * @param {object[]} items - Items to enrich
  * @param {object} client - Bungie API client
@@ -157,6 +239,25 @@ function enrichItemWithStats(item, statDefs) {
 async function enrichItemsWithStatNames(items, client) {
   const statDefs = await loadStatDefinitions(client);
   return items.map(item => enrichItemWithStats(item, statDefs));
+}
+
+/**
+ * Enrich items with comprehensive data (stats, perks, damage types)
+ * @param {object[]} items - Items to enrich
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object[]>} - Fully enriched items
+ */
+async function enrichItems(items, client) {
+  console.log('Loading definitions for enrichment...');
+  const statDefs = await loadStatDefinitions(client);
+  const perkDefs = await loadPerkDefinitions(client);
+  const damageTypeDefs = await loadDamageTypeDefinitions(client);
+  
+  return items.map(item => {
+    let enriched = enrichItemWithStats(item, statDefs);
+    enriched = enrichItemWithPerks(enriched, perkDefs, damageTypeDefs);
+    return enriched;
+  });
 }
 
 /**
@@ -325,6 +426,77 @@ async function getFragments(client) {
 }
 
 /**
+ * Gets all damage type definitions
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object[]>} - Array of damage type definitions
+ */
+async function getDamageTypes(client) {
+  const damageTypeDefs = await loadDamageTypeDefinitions(client);
+  return Object.values(damageTypeDefs).filter(dt => 
+    dt.displayProperties && dt.displayProperties.name
+  );
+}
+
+/**
+ * Gets artifact mods (seasonal artifact mods)
+ * Artifact mods are typically plugs with specific identifiers
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object[]>} - Array of artifact mod definitions
+ */
+async function getArtifactMods(client) {
+  const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
+  
+  // Artifact mods have specific patterns in their plug category or item type
+  return Object.values(items).filter(item => {
+    if (!item.plug) return false;
+    if (!item.displayProperties?.name) return false; // Filter out unnamed items
+    
+    const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
+    const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
+    
+    // Artifact mods typically have "artifact" in their identifier or type
+    // More specific filtering to avoid false positives
+    return (plugCat.includes('artifact') || 
+            itemType.includes('artifact') ||
+            (plugCat.includes('seasonal') && item.seasonHash));
+  });
+}
+
+/**
+ * Gets champion mods (anti-barrier, overload, unstoppable)
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object[]>} - Array of champion mod definitions
+ */
+async function getChampionMods(client) {
+  const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
+  
+  return Object.values(items).filter(item => {
+    if (!item.plug) return false;
+    if (!item.itemCategoryHashes || !item.itemCategoryHashes.includes(ITEM_CATEGORIES.ARMOR_MODS)) {
+      return false;
+    }
+    
+    const name = item.displayProperties?.name?.toLowerCase() || '';
+    const description = item.displayProperties?.description?.toLowerCase() || '';
+    
+    // Champion mods have specific prefixes or terms in name or description
+    // Use more specific patterns to avoid false positives
+    const championPatterns = [
+      'anti-barrier',
+      'overload',
+      'unstoppable',
+      'pierce barrier',
+      'disrupt overload',
+      'stagger unstoppable'
+    ];
+    
+    return championPatterns.some(pattern => 
+      name.includes(pattern) || description.includes(pattern)
+    );
+  });
+}
+
+/**
  * Gets all build crafting related data
  * @param {object} client - Bungie API client
  * @returns {Promise<object>} - Object containing all build crafting data
@@ -347,20 +519,44 @@ async function getAllBuildCraftingData(client) {
   console.log(`Found ${subclassData.fragments.length} fragments`);
   console.log(`Found ${subclassData.abilities.length} abilities`);
   
-  // Enrich all items with stat names
-  console.log('\nEnriching items with stat definitions...');
-  const enrichedWeapons = await enrichItemsWithStatNames(weapons, client);
-  const enrichedArmor = await enrichItemsWithStatNames(armor, client);
-  console.log('Stat enrichment complete');
+  const damageTypes = await getDamageTypes(client);
+  console.log(`Found ${damageTypes.length} damage types`);
+  
+  const artifactMods = await getArtifactMods(client);
+  console.log(`Found ${artifactMods.length} artifact mods`);
+  
+  const championMods = await getChampionMods(client);
+  console.log(`Found ${championMods.length} champion mods`);
+  
+  // Enrich all items with comprehensive data (stats, perks, damage types)
+  console.log('\nEnriching items with comprehensive definitions...');
+  const enrichedWeapons = await enrichItems(weapons, client);
+  const enrichedArmor = await enrichItems(armor, client);
+  const enrichedArmorMods = await enrichItems(armorMods, client);
+  const enrichedAspects = await enrichItems(subclassData.aspects, client);
+  const enrichedFragments = await enrichItems(subclassData.fragments, client);
+  const enrichedAbilities = await enrichItems(subclassData.abilities, client);
+  const enrichedArtifactMods = await enrichItems(artifactMods, client);
+  const enrichedChampionMods = await enrichItems(championMods, client);
+  console.log('Enrichment complete');
+  
+  // Add enemy weakness reference data
+  console.log('\nAdding enemy weakness reference data...');
+  const enemyWeaknesses = exportEnemyWeaknessData();
+  console.log(`Added ${enemyWeaknesses.length} enemy weakness entries`);
   
   return {
     weapons: enrichedWeapons,
     armor: enrichedArmor,
-    armorMods,
+    armorMods: enrichedArmorMods,
     subclasses: subclassData.subclasses,
-    aspects: subclassData.aspects,
-    fragments: subclassData.fragments,
-    abilities: subclassData.abilities
+    aspects: enrichedAspects,
+    fragments: enrichedFragments,
+    abilities: enrichedAbilities,
+    damageTypes,
+    artifactMods: enrichedArtifactMods,
+    championMods: enrichedChampionMods,
+    enemyWeaknesses
   };
 }
 
@@ -383,8 +579,12 @@ module.exports = {
   loadManifest,
   loadDefinitions,
   loadStatDefinitions,
+  loadPerkDefinitions,
+  loadDamageTypeDefinitions,
   enrichItemWithStats,
+  enrichItemWithPerks,
   enrichItemsWithStatNames,
+  enrichItems,
   isArmor2_0,
   getWeapons,
   getArmor,
@@ -392,6 +592,9 @@ module.exports = {
   getSubclassItems,
   getAspects,
   getFragments,
+  getDamageTypes,
+  getArtifactMods,
+  getChampionMods,
   getAllBuildCraftingData,
   clearCache
 };

@@ -36,6 +36,7 @@ async function main() {
     console.log(`Total Damage Types: ${buildData.damageTypes.length}`);
     console.log(`Total Artifact Mods: ${buildData.artifactMods.length}`);
     console.log(`Total Champion Mods: ${buildData.championMods.length}`);
+    console.log(`Total Enemy Weakness Entries: ${buildData.enemyWeaknesses.length}`);
     
     // Sample output - show first few items from each category
     console.log('\n=== Sample Data ===\n');

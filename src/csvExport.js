@@ -311,7 +311,8 @@ function exportAllToCSV(buildData, outputDir, statDefs = null) {
     { name: 'abilities', data: buildData.abilities, category: 'abilities' },
     { name: 'damage-types', data: buildData.damageTypes, category: 'damageTypes' },
     { name: 'artifact-mods', data: buildData.artifactMods, category: 'artifactMods' },
-    { name: 'champion-mods', data: buildData.championMods, category: 'championMods' }
+    { name: 'champion-mods', data: buildData.championMods, category: 'championMods' },
+    { name: 'enemy-weaknesses', data: buildData.enemyWeaknesses, category: 'enemyWeaknesses' }
   ];
   
   for (const { name, data, category } of exports) {

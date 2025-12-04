@@ -56,7 +56,8 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
         { name: 'abilities', data: buildData.abilities },
         { name: 'damage-types', data: buildData.damageTypes },
         { name: 'artifact-mods', data: buildData.artifactMods },
-        { name: 'champion-mods', data: buildData.championMods }
+        { name: 'champion-mods', data: buildData.championMods },
+        { name: 'enemy-weaknesses', data: buildData.enemyWeaknesses }
       ];
       
       for (const { name, data } of exports) {
@@ -139,7 +140,8 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
         abilities: buildData.abilities.length,
         damageTypes: buildData.damageTypes.length,
         artifactMods: buildData.artifactMods.length,
-        championMods: buildData.championMods.length
+        championMods: buildData.championMods.length,
+        enemyWeaknesses: buildData.enemyWeaknesses.length
       }
     };
     

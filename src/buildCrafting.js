@@ -1,4 +1,5 @@
 const { getManifest, downloadManifestComponent, getDefinitionPath } = require('./manifest');
+const { exportEnemyWeaknessData } = require('./enemyWeaknesses');
 
 /**
  * Item categories for filtering
@@ -531,6 +532,11 @@ async function getAllBuildCraftingData(client) {
   const enrichedChampionMods = await enrichItems(championMods, client);
   console.log('Enrichment complete');
   
+  // Add enemy weakness reference data
+  console.log('\nAdding enemy weakness reference data...');
+  const enemyWeaknesses = exportEnemyWeaknessData();
+  console.log(`Added ${enemyWeaknesses.length} enemy weakness entries`);
+  
   return {
     weapons: enrichedWeapons,
     armor: enrichedArmor,
@@ -541,7 +547,8 @@ async function getAllBuildCraftingData(client) {
     abilities: enrichedAbilities,
     damageTypes,
     artifactMods: enrichedArtifactMods,
-    championMods: enrichedChampionMods
+    championMods: enrichedChampionMods,
+    enemyWeaknesses
   };
 }
 

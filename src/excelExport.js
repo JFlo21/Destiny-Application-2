@@ -105,7 +105,10 @@ async function exportAllToExcel(buildData, filename, statDefs = null) {
       { name: 'Subclasses', data: buildData.subclasses, category: 'subclasses' },
       { name: 'Aspects', data: buildData.aspects, category: 'aspects' },
       { name: 'Fragments', data: buildData.fragments, category: 'fragments' },
-      { name: 'Abilities', data: buildData.abilities, category: 'abilities' }
+      { name: 'Abilities', data: buildData.abilities, category: 'abilities' },
+      { name: 'Damage Types', data: buildData.damageTypes, category: 'damageTypes' },
+      { name: 'Artifact Mods', data: buildData.artifactMods, category: 'artifactMods' },
+      { name: 'Champion Mods', data: buildData.championMods, category: 'championMods' }
     ];
     
     for (const { name, data, category } of worksheets) {
@@ -138,7 +141,10 @@ async function exportAllToSeparateExcelFiles(buildData, outputDir, statDefs = nu
     { name: 'subclasses', data: buildData.subclasses, category: 'subclasses' },
     { name: 'aspects', data: buildData.aspects, category: 'aspects' },
     { name: 'fragments', data: buildData.fragments, category: 'fragments' },
-    { name: 'abilities', data: buildData.abilities, category: 'abilities' }
+    { name: 'abilities', data: buildData.abilities, category: 'abilities' },
+    { name: 'damage-types', data: buildData.damageTypes, category: 'damageTypes' },
+    { name: 'artifact-mods', data: buildData.artifactMods, category: 'artifactMods' },
+    { name: 'champion-mods', data: buildData.championMods, category: 'championMods' }
   ];
   
   for (const { name, data, category } of exports) {

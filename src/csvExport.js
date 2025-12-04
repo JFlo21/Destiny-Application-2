@@ -196,9 +196,33 @@ function transformItemForCSV(item, category, statDefs = null) {
     }
   }
   
-  // Add perks if available
-  if (item.perks && item.perks.length > 0) {
+  // Add enriched perks if available (with names and descriptions)
+  if (item.enrichedPerks && item.enrichedPerks.length > 0) {
+    transformed.perkNames = item.enrichedPerks
+      .filter(p => p.isDisplayable)
+      .map(p => p.name)
+      .join(', ');
+    transformed.perkDescriptions = item.enrichedPerks
+      .filter(p => p.isDisplayable)
+      .map(p => `${p.name}: ${p.description}`)
+      .join(' | ');
+  } else if (item.perks && item.perks.length > 0) {
+    // Fallback to hash if enriched perks not available
     transformed.perks = item.perks.map(p => p.perkHash).join(', ');
+  }
+  
+  // Add enriched damage type if available
+  if (item.enrichedDamageType) {
+    transformed.damageTypeName = item.enrichedDamageType.name;
+    transformed.damageTypeDescription = item.enrichedDamageType.description;
+  }
+  
+  // Add intrinsic perk information (first socket typically contains intrinsic trait)
+  if (item.sockets?.socketEntries && item.sockets.socketEntries.length > 0) {
+    const intrinsicSocket = item.sockets.socketEntries[0];
+    if (intrinsicSocket?.singleInitialItemHash) {
+      transformed.intrinsicPerkHash = intrinsicSocket.singleInitialItemHash;
+    }
   }
   
   // Add sockets information if not already added
@@ -263,7 +287,10 @@ function exportAllToCSV(buildData, outputDir, statDefs = null) {
     { name: 'subclasses', data: buildData.subclasses, category: 'subclasses' },
     { name: 'aspects', data: buildData.aspects, category: 'aspects' },
     { name: 'fragments', data: buildData.fragments, category: 'fragments' },
-    { name: 'abilities', data: buildData.abilities, category: 'abilities' }
+    { name: 'abilities', data: buildData.abilities, category: 'abilities' },
+    { name: 'damage-types', data: buildData.damageTypes, category: 'damageTypes' },
+    { name: 'artifact-mods', data: buildData.artifactMods, category: 'artifactMods' },
+    { name: 'champion-mods', data: buildData.championMods, category: 'championMods' }
   ];
   
   for (const { name, data, category } of exports) {

@@ -144,8 +144,10 @@ async function loadSeasonDefinitions(client) {
 
 /**
  * Gets the current season hash by dynamically detecting the active season
- * The current season is determined by finding the season with the highest seasonNumber
- * that has already started (startDate <= now) and optionally hasn't ended
+ * The current season is determined by finding the season that:
+ * 1. Has already started (startDate <= now)
+ * 2. Has not ended yet (endDate > now, if available)
+ * 3. Has the highest seasonNumber among active seasons
  * @param {object} client - Bungie API client
  * @returns {Promise<number>} - Current season hash
  */
@@ -160,8 +162,7 @@ async function getCurrentSeasonHash(client) {
   // Get current date for comparison
   const now = new Date();
   
-  // Filter seasons that have started and find the one with highest season number
-  // This dynamically detects the current active season
+  // Filter to only currently active seasons (started but not ended)
   const activeSeasons = seasons.filter(s => {
     // Season must have a valid seasonNumber
     if (!s.seasonNumber || s.seasonNumber <= 0) return false;
@@ -172,13 +173,34 @@ async function getCurrentSeasonHash(client) {
       if (startDate > now) return false; // Season hasn't started yet
     }
     
+    // Check if season has ended (if endDate is available)
+    if (s.endDate) {
+      const endDate = new Date(s.endDate);
+      if (endDate <= now) return false; // Season has already ended
+    }
+    
     return true;
   });
   
-  // Sort by seasonNumber descending to get the latest/current season
-  activeSeasons.sort((a, b) => b.seasonNumber - a.seasonNumber);
-  
-  const currentSeason = activeSeasons[0];
+  // If we found active seasons, use the one with highest season number
+  // Otherwise, fall back to the most recent season by seasonNumber
+  let currentSeason;
+  if (activeSeasons.length > 0) {
+    activeSeasons.sort((a, b) => b.seasonNumber - a.seasonNumber);
+    currentSeason = activeSeasons[0];
+  } else {
+    // Fallback: use the season with the highest seasonNumber that has started
+    const startedSeasons = seasons.filter(s => {
+      if (!s.seasonNumber || s.seasonNumber <= 0) return false;
+      if (s.startDate) {
+        const startDate = new Date(s.startDate);
+        if (startDate > now) return false;
+      }
+      return true;
+    });
+    startedSeasons.sort((a, b) => b.seasonNumber - a.seasonNumber);
+    currentSeason = startedSeasons[0];
+  }
   
   if (!currentSeason) {
     throw new Error('Could not determine current season from manifest');

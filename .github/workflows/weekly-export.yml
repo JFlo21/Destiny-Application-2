@@ -31,13 +31,14 @@ jobs:
         env:
           BUNGIE_API_KEY: ${{ secrets.BUNGIE_API_KEY }}
           GOOGLE_SHEETS_CREDENTIALS: ${{ secrets.GOOGLE_SHEETS_CREDENTIALS }}
+          EXPORT_ARGS: "./destiny-data --excel --excel-master"
         run: |
           if [ -n "$GOOGLE_SHEETS_CREDENTIALS" ]; then
             echo "Google Sheets credentials found, exporting to Google Sheets..."
-            node src/exportData.js ./destiny-data --excel --excel-master --google-sheets
+            node src/exportData.js $EXPORT_ARGS --google-sheets
           else
             echo "No Google Sheets credentials, exporting to JSON, CSV, and Excel only..."
-            node src/exportData.js ./destiny-data --excel --excel-master
+            node src/exportData.js $EXPORT_ARGS
           fi
       
       - name: Upload data as artifact

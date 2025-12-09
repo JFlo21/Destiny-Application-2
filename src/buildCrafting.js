@@ -532,7 +532,10 @@ async function getSubclassItems(client) {
            plugCat.includes('v400.plugs.abilities');
   });
   
-  // Return all subclass items (no season filtering - these persist across seasons)
+  // Return all subclass items (no season filtering)
+  // Note: Subclass aspects, fragments, and abilities persist across seasons.
+  // Unlike seasonal artifact mods which change each season, these subclass items
+  // remain available to players indefinitely once unlocked, so we export all of them.
   return {
     subclasses: subclassItems,
     aspects: aspects,

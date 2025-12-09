@@ -67,18 +67,13 @@ const ARMOR_2_0_PLUG_SET_HASH = 4163334830; // Common Armor 2.0 plug set hash
 const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145; // Stat mod plug category hash
 
 /**
- * Season constants
- * Season 28 - Renegades (December 2, 2025)
- */
-const CURRENT_SEASON_NUMBER = 28; // Renegades season
-
-/**
  * Cache for manifest data
  */
 let manifestCache = null;
 let definitionsCache = {};
 let currentSeasonHash = null;
 let currentSeasonName = null;
+let currentSeasonNumber = null;
 
 /**
  * Loads the manifest and caches it
@@ -148,7 +143,11 @@ async function loadSeasonDefinitions(client) {
 }
 
 /**
- * Gets the current season hash (Season 28 - Renegades)
+ * Gets the current season hash by dynamically detecting the active season
+ * The current season is determined by finding the season that:
+ * 1. Has already started (startDate <= now)
+ * 2. Has not ended yet (endDate > now, if available)
+ * 3. Has the highest seasonNumber among active seasons
  * @param {object} client - Bungie API client
  * @returns {Promise<number>} - Current season hash
  */
@@ -160,18 +159,70 @@ async function getCurrentSeasonHash(client) {
   const seasonDefs = await loadSeasonDefinitions(client);
   const seasons = Object.values(seasonDefs);
   
-  // Find the current season by number
-  const currentSeason = seasons.find(s => s.seasonNumber === CURRENT_SEASON_NUMBER);
+  // Get current date for comparison
+  const now = new Date();
+  
+  // Filter to only currently active seasons (started but not ended)
+  const activeSeasons = seasons.filter(s => {
+    // Season must have a valid seasonNumber
+    if (!s.seasonNumber || s.seasonNumber <= 0) return false;
+    
+    // Check if season has started (if startDate is available)
+    if (s.startDate) {
+      const startDate = new Date(s.startDate);
+      if (startDate > now) return false; // Season hasn't started yet
+    }
+    
+    // Check if season has ended (if endDate is available)
+    if (s.endDate) {
+      const endDate = new Date(s.endDate);
+      if (endDate <= now) return false; // Season has already ended
+    }
+    
+    return true;
+  });
+  
+  // If we found active seasons, use the one with highest season number
+  // Otherwise, fall back to the most recent season by seasonNumber
+  let currentSeason;
+  if (activeSeasons.length > 0) {
+    activeSeasons.sort((a, b) => b.seasonNumber - a.seasonNumber);
+    currentSeason = activeSeasons[0];
+  } else {
+    // Fallback: use the season with the highest seasonNumber that has started
+    const startedSeasons = seasons.filter(s => {
+      if (!s.seasonNumber || s.seasonNumber <= 0) return false;
+      if (s.startDate) {
+        const startDate = new Date(s.startDate);
+        if (startDate > now) return false;
+      }
+      return true;
+    });
+    startedSeasons.sort((a, b) => b.seasonNumber - a.seasonNumber);
+    currentSeason = startedSeasons[0];
+  }
   
   if (!currentSeason) {
-    throw new Error(`Season ${CURRENT_SEASON_NUMBER} not found in manifest`);
+    throw new Error('Could not determine current season from manifest');
   }
   
   currentSeasonHash = currentSeason.hash;
-  currentSeasonName = currentSeason.displayProperties?.name || `Season ${CURRENT_SEASON_NUMBER}`;
-  console.log(`Current season: ${currentSeasonName} (Season ${CURRENT_SEASON_NUMBER}, hash: ${currentSeasonHash})`);
+  currentSeasonNumber = currentSeason.seasonNumber;
+  currentSeasonName = currentSeason.displayProperties?.name || `Season ${currentSeasonNumber}`;
+  console.log(`Current season detected: ${currentSeasonName} (Season ${currentSeasonNumber}, hash: ${currentSeasonHash})`);
   
   return currentSeasonHash;
+}
+
+/**
+ * Gets the current season number
+ * @param {object} client - Bungie API client
+ * @returns {Promise<number>} - Current season number
+ */
+async function getCurrentSeasonNumber(client) {
+  // Ensure season data is loaded
+  await getCurrentSeasonHash(client);
+  return currentSeasonNumber;
 }
 
 /**
@@ -182,7 +233,7 @@ async function getCurrentSeasonHash(client) {
 async function getCurrentSeasonName(client) {
   // Ensure season data is loaded
   await getCurrentSeasonHash(client);
-  return currentSeasonName || `Season ${CURRENT_SEASON_NUMBER}`;
+  return currentSeasonName || `Season ${currentSeasonNumber}`;
 }
 
 /**
@@ -676,6 +727,7 @@ function clearCache() {
   definitionsCache = {};
   currentSeasonHash = null;
   currentSeasonName = null;
+  currentSeasonNumber = null;
 }
 
 module.exports = {
@@ -686,7 +738,6 @@ module.exports = {
   ARMOR_2_0_PLUG_SET_HASH,
   ARMOR_2_0_STAT_PLUG_CATEGORY,
   ARMOR_2_0_MOD_IDENTIFIERS,
-  CURRENT_SEASON_NUMBER,
   loadManifest,
   loadDefinitions,
   loadStatDefinitions,
@@ -694,6 +745,7 @@ module.exports = {
   loadDamageTypeDefinitions,
   loadSeasonDefinitions,
   getCurrentSeasonHash,
+  getCurrentSeasonNumber,
   getCurrentSeasonName,
   filterByCurrentSeason,
   enrichItemWithStats,

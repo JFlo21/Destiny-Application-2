@@ -4,34 +4,33 @@ A Node.js application that fetches build crafting data from the Bungie API for D
 
 ## Features
 
-- **SEASON-SPECIFIC DATA:** Only fetches data from Season 28 (Renegades) released on December 2, 2025
+- **AUTOMATIC SEASON DETECTION:** Dynamically detects and fetches data from the current active season
 - Fetches weapon data from the Destiny 2 manifest with detailed stats
 - Fetches **Armor 2.0** armor data (helmets, gauntlets, chest, legs, class items)
   - Filters out legacy armor (pre-Shadowkeep)
   - Includes energy capacity and mod socket information
-  - **Only returns armor from Season 28 (Renegades)**
+  - **Only returns armor from the current active season**
 - Fetches **Armor 2.0** mods with energy costs and stat bonuses
   - Excludes legacy mods from the old system
-  - **Only returns mods from Season 28 (Renegades)**
+  - **Only returns mods from the current active season**
 - Fetches subclass aspects with stat modifiers
 - Fetches subclass fragments with stat bonuses/penalties
 - Fetches subclass abilities (grenades, melees, class abilities, supers)
-- **NEW:** Fetches damage type definitions with elemental weaknesses
-- **NEW:** Fetches artifact mods (seasonal artifact modifications)
-  - **Only returns artifact mods from Season 28 (Renegades)**
-- **NEW:** Fetches champion mods (anti-barrier, overload, unstoppable)
-  - **Only returns champion mods from Season 28 (Renegades)**
-- **NEW:** Includes enemy weakness reference data for all factions
+- Fetches damage type definitions with elemental weaknesses
+- Fetches artifact mods (seasonal artifact modifications)
+  - **Only returns artifact mods from the current active season**
+- Fetches champion mods (anti-barrier, overload, unstoppable)
+  - **Only returns champion mods from the current active season**
+- Includes enemy weakness reference data for all factions
   - Shield types and elemental weaknesses by enemy faction
   - Champion types and counters
   - Damage effectiveness multipliers
-  - **Includes Barant Imperium faction from Renegades expansion**
-- **NEW:** Resolves perk hashes to human-readable names and descriptions
-- **NEW:** Includes intrinsic weapon/armor traits and perks
+- Resolves perk hashes to human-readable names and descriptions
+- Includes intrinsic weapon/armor traits and perks
 - **Resolves stat hashes to human-readable names** using DestinyStatDefinition
 - Displays **actual numeric stat values** for easy build crafting
 - Caches manifest data to minimize API calls
-- **Compatible with Destiny 2: Renegades expansion (December 2, 2025)**
+- **Always up-to-date with current Destiny 2 content**
 
 ## Installation
 
@@ -198,7 +197,7 @@ The exported data makes it easy to get build recommendations from ChatGPT:
    - "Analyze this data and suggest the best PvE build for a Warlock"
    - "What are the best weapon perks for a Solar build?"
    - "Which artifact mods complement a champion-focused build?"
-   - "Based on enemy weaknesses, what weapon damage types should I use against the Barant Imperium faction?"
+   - "Based on enemy weaknesses, what weapon damage types should I use against the Hive?"
    - "What's the optimal loadout for fighting Vex with Void shields?"
 
 The readable perk names, damage types, enemy weakness data, stat names, and organized structure make it easy for ChatGPT to understand and analyze the data for comprehensive build recommendations.

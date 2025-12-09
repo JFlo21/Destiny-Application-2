@@ -10,6 +10,7 @@ const {
   clearCache,
   isArmor2_0,
   enrichItemWithStats,
+  getCurrentSeasonNumber,
   ITEM_CATEGORIES,
   ARMOR_2_0_PLUG_SET_HASH
 } = require('../src/buildCrafting');
@@ -218,6 +219,14 @@ async function runIntegrationTests() {
     const fragments = await getFragments(client);
     assert(Array.isArray(fragments), 'Fragments should be an array');
     // Fragments may be empty if none match the criteria
+  });
+  
+  await asyncTest('getCurrentSeasonNumber dynamically detects current season', async () => {
+    const seasonNumber = await getCurrentSeasonNumber(client);
+    assert(typeof seasonNumber === 'number', 'Season number should be a number');
+    assert(seasonNumber > 0, 'Season number should be greater than 0');
+    // Current season should be a reasonable number (Destiny 2 started at Season 1)
+    assert(seasonNumber >= 1 && seasonNumber <= 100, 'Season number should be between 1 and 100');
   });
 }
 

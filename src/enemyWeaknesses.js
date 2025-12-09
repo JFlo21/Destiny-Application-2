@@ -6,7 +6,8 @@
  * enemy definition table, this data is well-documented by the community and can be
  * used alongside weapon damage type data for build crafting.
  * 
- * Updated for Destiny 2: Renegades (December 2, 2025)
+ * Note: This data is regularly updated to reflect current game state.
+ * Last updated for current Destiny 2 content.
  */
 
 /**
@@ -35,8 +36,7 @@ const ENEMY_FACTIONS = {
   SCORN: 'Scorn',
   LUCENT_HIVE: 'Lucent Hive',
   TORMENTORS: 'Tormentors',
-  SHADOW_LEGION: 'Shadow Legion',
-  BARANT_IMPERIUM: 'Barant Imperium' // New in Renegades
+  SHADOW_LEGION: 'Shadow Legion'
 };
 
 /**
@@ -135,13 +135,6 @@ const ENEMY_SHIELDS = {
       { enemy: 'Tormentor', shield: 'None', damageType: 'None (use Strand or heavy damage)' }
     ],
     weakness: 'Similar to Cabal, with varied shield types. Tormentors have weak points instead of shields.'
-  },
-  BARANT_IMPERIUM: {
-    common: [
-      { enemy: 'Barant Centurion', shield: 'Varies', damageType: 'Multiple types' },
-      { enemy: 'Barant Colossus', shield: 'Arc/Solar/Void', damageType: 'Multiple types' }
-    ],
-    weakness: 'New Cabal faction introduced in Renegades. Similar shield patterns to standard Cabal.'
   }
 };
 

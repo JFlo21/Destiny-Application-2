@@ -4,18 +4,16 @@ A Node.js application that fetches build crafting data from the Bungie API for D
 
 ## Features
 
-- **AUTOMATIC SEASON DETECTION:** Dynamically detects and fetches data from the current active season
-- Fetches weapon data from the Destiny 2 manifest with detailed stats
-- Fetches **Armor 2.0** armor data (helmets, gauntlets, chest, legs, class items)
+- **AUTOMATIC SEASON DETECTION:** Dynamically detects the current active season
+- Fetches **all weapons** from the Destiny 2 manifest with detailed stats
+- Fetches **all Armor 2.0** armor data (helmets, gauntlets, chest, legs, class items)
   - Filters out legacy armor (pre-Shadowkeep)
   - Includes energy capacity and mod socket information
-  - **Only returns armor from the current active season**
-- Fetches **Armor 2.0** mods with energy costs and stat bonuses
+- Fetches **all Armor 2.0 mods** with energy costs and stat bonuses
   - Excludes legacy mods from the old system
-  - **Only returns mods from the current active season**
-- Fetches subclass aspects with stat modifiers
-- Fetches subclass fragments with stat bonuses/penalties
-- Fetches subclass abilities (grenades, melees, class abilities, supers)
+- Fetches **all subclass aspects** with stat modifiers
+- Fetches **all subclass fragments** with stat bonuses/penalties
+- Fetches **all subclass abilities** (grenades, melees, class abilities, supers)
 - Fetches damage type definitions with elemental weaknesses
 - Fetches artifact mods (seasonal artifact modifications)
   - **Only returns artifact mods from the current active season**
@@ -257,7 +255,8 @@ This repository includes a GitHub Actions workflow that automatically exports al
 ### How It Works
 
 - **Schedule**: Runs every Sunday at midnight UTC
-- **Output**: Exports weapons, armor, armor mods, aspects, and fragments as JSON files
+- **Output**: Exports all weapons, armor, armor mods, aspects, fragments, abilities, damage types, artifact mods, champion mods, and enemy weaknesses
+- **Formats**: JSON, CSV, Excel (.xlsx), and optionally Google Sheets (if credentials are configured)
 - **Artifacts**: Data is uploaded as GitHub Actions artifacts with 90-day retention
 
 ### Viewing the Exported Data
@@ -275,7 +274,18 @@ You can also trigger the export manually:
 
 ### Requirements
 
-Make sure you have set the `BUNGIE_API_KEY` secret (see Configuration section above).
+Required secrets:
+- `BUNGIE_API_KEY` - Your Bungie API key (required)
+- `GOOGLE_SHEETS_CREDENTIALS` - Google service account credentials JSON (optional, for Google Sheets export)
+
+To set up secrets:
+1. Go to your GitHub repository
+2. Click **Settings** > **Secrets and variables** > **Actions**
+3. Click **New repository secret**
+4. Add `BUNGIE_API_KEY` with your Bungie API key
+5. (Optional) Add `GOOGLE_SHEETS_CREDENTIALS` with your Google service account credentials JSON to enable Google Sheets export
+
+For Google Sheets setup instructions, see [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md)
 
 ## API Reference
 

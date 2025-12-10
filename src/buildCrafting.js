@@ -3,6 +3,7 @@ const { exportEnemyWeaknessData } = require('./enemyWeaknesses');
 
 /**
  * Item categories for filtering
+ * Reference: https://bungie-net.github.io/multi/schema_Destiny-Definitions-DestinyItemCategoryDefinition.html
  */
 const ITEM_CATEGORIES = {
   WEAPON: 1, // Weapon category
@@ -48,7 +49,11 @@ const ARMOR_TYPES = {
 
 /**
  * Plug category identifiers for subclass elements.
- * These can be used to further filter subclass-related items.
+ * These patterns are used in plugCategoryIdentifier to identify subclass-related items.
+ * Reference: https://bungie-net.github.io/multi/schema_Destiny-Definitions-Items-DestinyItemPlugDefinition.html
+ * Common patterns include:
+ * - Aspects: 'Subclass.Aspects', 'v400.plugs.aspects', etc. (contains 'aspects')
+ * - Fragments: 'Subclass.Fragments', 'v400.plugs.fragments', etc. (contains 'fragments')
  */
 const SUBCLASS_PLUG_CATEGORIES = {
   ASPECTS: 'aspects',
@@ -520,38 +525,40 @@ async function getArmorMods(client) {
 async function getSubclassItems(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   
-  // Get all subclass items
+  // Get all subclass items by category hash (1403)
   const subclassItems = filterByCategory(items, ITEM_CATEGORIES.SUBCLASS);
   
-  // Aspects have specific plug category identifiers
-  // Match by plugCategoryIdentifier or itemTypeDisplayName (not by name to avoid false positives)
+  // Per Bungie API (https://github.com/Bungie-net/api), aspects use plugCategoryIdentifier patterns like:
+  // - 'Subclass.Aspects' or 'v400.plugs.aspects' or similar containing 'aspect'
+  // Reference: https://bungie-net.github.io/multi/schema_Destiny-Definitions-Items-DestinyItemPlugDefinition.html
   const aspects = Object.values(items).filter(item => {
     const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
     
-    // Match aspects by plug category identifier or item type display name only
-    // Do NOT match by name as this can capture unrelated items like weapons with "aspect" in their name
-    // Note: plugCat.includes('aspect') will match both 'aspect' and 'aspects' in the identifier
+    // Match aspects by plugCategoryIdentifier containing 'aspect' (covers both singular and plural patterns)
+    // Also match by itemTypeDisplayName being exactly 'aspect'
+    // Do NOT match by item name as this can capture unrelated items like weapons with "aspect" in their name
     return plugCat.includes('aspect') || itemType === 'aspect';
   });
   
-  // Fragments have specific plug category identifiers  
-  // Match by plugCategoryIdentifier or itemTypeDisplayName (not by name to avoid false positives)
+  // Per Bungie API, fragments use plugCategoryIdentifier patterns like:
+  // - 'Subclass.Fragments' or 'v400.plugs.fragments' or similar containing 'fragment'
   const fragments = Object.values(items).filter(item => {
     const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
     
-    // Match fragments by plug category identifier or item type display name only
-    // Do NOT match by name as this can capture unrelated items like weapons with "fragment" in their name
-    // Note: plugCat.includes('fragment') will match both 'fragment' and 'fragments' in the identifier
+    // Match fragments by plugCategoryIdentifier containing 'fragment' (covers both singular and plural patterns)
+    // Also match by itemTypeDisplayName being exactly 'fragment'
+    // Do NOT match by item name as this can capture unrelated items like weapons with "fragment" in their name
     return plugCat.includes('fragment') || itemType === 'fragment';
   });
   
   // Get subclass abilities (grenades, melees, class abilities, supers)
+  // Per Bungie API, abilities use plugCategoryIdentifier patterns like 'v400.plugs.abilities', 'grenades', etc.
   const abilities = Object.values(items).filter(item => {
     const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
     
-    // Match common subclass ability identifiers
+    // Match common subclass ability identifiers per Bungie API patterns
     return plugCat.includes('grenades') ||
            plugCat.includes('melee') ||
            plugCat.includes('class_abilities') ||
@@ -605,17 +612,19 @@ async function getDamageTypes(client) {
 
 /**
  * Gets artifact mods (seasonal artifact mods)
- * Artifact mods are typically plugs with specific identifiers
+ * Per Bungie API documentation (https://github.com/Bungie-net/api), artifact mods
+ * have specific plugCategoryIdentifier patterns like 'seasonal_artifact_perk' or 'artifact_perk'
  * Filters out redacted and non-equippable items
- * Note: Includes all artifact mods without strict season filtering, as the Bungie API
- * may not consistently set seasonHash on all artifact mods
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of artifact mod definitions
  */
 async function getArtifactMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   
-  // Artifact mods have specific patterns in their plug category or item type
+  // Per Bungie API, artifact mods have plugCategoryIdentifier patterns like:
+  // - 'seasonal_artifact_perk' or 'seasonal_artifact'
+  // - 'artifact_perk' or 'artifact_perk_episodeX' (where X is the episode/season number)
+  // Reference: https://bungie-net.github.io/multi/schema_Destiny-Definitions-Items-DestinyItemPlugDefinition.html
   const allArtifactMods = Object.values(items).filter(item => {
     if (!item.plug) return false;
     if (!item.displayProperties?.name) return false; // Filter out unnamed items
@@ -623,16 +632,15 @@ async function getArtifactMods(client) {
     const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
     
-    // Artifact mods typically have "artifact" in their identifier or type
-    // Match artifact mods based on plug category or item type
-    return plugCat.includes('artifact') || 
-           itemType.includes('artifact') ||
-           plugCat.includes('seasonal_artifact');
+    // Match artifact mods based on Bungie API patterns
+    // These identifiers are used for seasonal artifact perks/mods
+    return plugCat.includes('seasonal_artifact') || 
+           plugCat.includes('artifact_perk') ||
+           plugCat.startsWith('artifact') ||
+           itemType.includes('artifact');
   });
   
   // Filter to only usable items (not redacted, equippable, with names)
-  // Note: Season filtering removed as it was too restrictive - the Bungie API
-  // does not consistently set seasonHash on all artifact mods
   return filterUsableItems(allArtifactMods);
 }
 

@@ -474,11 +474,12 @@ async function getArmor(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   const allArmor = filterByCategory(items, ITEM_CATEGORIES.ARMOR);
   
-  // Filter for Armor 2.0 only (excludes legacy armor with old mod system)
-  const armor2_0 = allArmor.filter(item => isArmor2_0(item));
+  // Note: As of 2024+, all armor in Destiny 2 is Armor 2.0 (legacy armor was sunset)
+  // The isArmor2_0 filter can be overly restrictive if API data doesn't include energy fields
+  // So we'll just use filterUsableItems to get current, equippable armor
   
   // Filter to only usable items (not redacted, equippable, with names)
-  const usableArmor = filterUsableItems(armor2_0);
+  const usableArmor = filterUsableItems(allArmor);
   
   return usableArmor;
 }
@@ -498,24 +499,12 @@ async function getArmorMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   const allMods = filterByCategory(items, ITEM_CATEGORIES.ARMOR_MODS);
   
-  // Filter for Armor 2.0 mods only (those with energy costs)
-  const armor2_0Mods = allMods.filter(mod => {
-    // Armor 2.0 mods have energy costs in their plug definition
-    if (mod.plug && mod.plug.energyCost) {
-      return true;
-    }
-    
-    // Also include mods with plugCategoryIdentifier containing Armor 2.0 patterns
-    if (mod.plug && mod.plug.plugCategoryIdentifier) {
-      const identifier = mod.plug.plugCategoryIdentifier.toLowerCase();
-      return ARMOR_2_0_MOD_IDENTIFIERS.some(pattern => identifier.includes(pattern));
-    }
-    
-    return false;
-  });
+  // Note: As of 2024+, all mods in Destiny 2 are Armor 2.0 compatible (legacy mods were sunset)
+  // The energy cost filter can be overly restrictive if API data structure changes
+  // We'll just use filterUsableItems to get current, equippable mods
   
   // Filter to only usable items (not redacted, equippable, with names)
-  const usableMods = filterUsableItems(armor2_0Mods);
+  const usableMods = filterUsableItems(allMods);
   
   return usableMods;
 }
@@ -535,32 +524,28 @@ async function getSubclassItems(client) {
   // Aspects have specific plug category identifiers
   // Look for items that have "aspect" in their plug category or item type
   const aspects = Object.values(items).filter(item => {
-    if (!item.plug) return false;
-    
-    const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
+    const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
+    const name = item.displayProperties?.name?.toLowerCase() || '';
     
-    // Match aspects by plug category identifier or item type
-    return plugCat.includes('aspect') || itemType.includes('aspect');
+    // Match aspects by plug category identifier, item type, or name
+    return plugCat.includes('aspect') || itemType.includes('aspect') || name.includes('aspect');
   });
   
   // Fragments have specific plug category identifiers  
   // Look for items that have "fragment" in their plug category or item type
   const fragments = Object.values(items).filter(item => {
-    if (!item.plug) return false;
-    
-    const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
+    const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
+    const name = item.displayProperties?.name?.toLowerCase() || '';
     
-    // Match fragments by plug category identifier or item type
-    return plugCat.includes('fragment') || itemType.includes('fragment');
+    // Match fragments by plug category identifier, item type, or name
+    return plugCat.includes('fragment') || itemType.includes('fragment') || name.includes('fragment');
   });
   
   // Get subclass abilities (grenades, melees, class abilities, supers)
   const abilities = Object.values(items).filter(item => {
-    if (!item.plug) return false;
-    
-    const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
+    const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
     
     // Match common subclass ability identifiers
     return plugCat.includes('grenades') ||

@@ -337,26 +337,28 @@ function generateStatReference() {
   // Add armor stats (Armor 3.0 system)
   const armorStats = ['Mobility', 'Resilience', 'Recovery', 'Discipline', 'Intellect', 'Strength'];
   armorStats.forEach(statName => {
-    statReference.push({
-      statName,
-      category: 'Armor Stats (Armor 3.0)',
-      description: STAT_DESCRIPTIONS[statName] || '',
-      relevantFor: 'Armor, Abilities, Fragments, Aspects, Armor Mods'
-    });
-  });
-  
-  // Add commonly used weapon stats
-  const weaponStats = ['Impact', 'Range', 'Stability', 'Handling', 'Reload Speed', 'RPM (Rounds Per Minute)', 
-                       'Aim Assistance', 'Recoil Direction', 'Magazine', 'Zoom'];
-  weaponStats.forEach(statName => {
     if (STAT_DESCRIPTIONS[statName]) {
       statReference.push({
         statName,
-        category: 'Weapon Stats',
+        category: 'Armor Stats (Armor 3.0)',
         description: STAT_DESCRIPTIONS[statName],
-        relevantFor: 'Weapons'
+        relevantFor: 'Armor, Abilities, Fragments, Aspects, Armor Mods'
       });
     }
+  });
+  
+  // Add weapon stats - dynamically get all weapon stats from STAT_DESCRIPTIONS
+  const weaponStats = Object.keys(STAT_DESCRIPTIONS).filter(statName => 
+    !armorStats.includes(statName)
+  );
+  
+  weaponStats.forEach(statName => {
+    statReference.push({
+      statName,
+      category: 'Weapon Stats',
+      description: STAT_DESCRIPTIONS[statName],
+      relevantFor: 'Weapons'
+    });
   });
   
   return statReference;

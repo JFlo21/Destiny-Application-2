@@ -13,7 +13,7 @@ const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145;
  * These are common Destiny 2 stat hashes
  */
 const STAT_HASHES = {
-  // Armor stats
+  // Armor stats (Armor 3.0 system)
   '2996146975': 'Mobility',
   '392767087': 'Resilience',
   '1943323491': 'Recovery',
@@ -45,6 +45,40 @@ const STAT_HASHES = {
   '3022301683': 'Guard Endurance',
   '2837207746': 'Swing Speed',
   '1486958981': 'Charge Rate'
+};
+
+/**
+ * Stat descriptions explaining what each stat does in-game
+ * Helps users understand the effect of stats for buildcrafting
+ */
+const STAT_DESCRIPTIONS = {
+  // Armor stats (Armor 3.0 system)
+  'Mobility': 'Increases movement speed, walk speed, strafe speed, and initial jump height. Reduces dodge cooldown for Hunters.',
+  'Resilience': 'Increases maximum health and shield capacity. Reduces barricade cooldown for Titans. Higher resilience means more survivability.',
+  'Recovery': 'Increases the speed at which health and shields regenerate. Reduces rift cooldown for Warlocks.',
+  'Discipline': 'Reduces grenade ability cooldown time.',
+  'Intellect': 'Reduces super ability cooldown time.',
+  'Strength': 'Reduces melee ability cooldown time.',
+  
+  // Weapon stats
+  'Impact': 'Damage per shot or swing',
+  'Range': 'Effective distance before damage falloff',
+  'Stability': 'Weapon recoil control',
+  'Handling': 'Speed of aiming down sights, ready, and stow',
+  'Reload Speed': 'Speed of reloading',
+  'RPM (Rounds Per Minute)': 'Rate of fire',
+  'Aim Assistance': 'Bullet magnetism and target acquisition',
+  'Recoil Direction': 'Direction of weapon recoil (higher = more vertical)',
+  'Zoom': 'Magnification when aiming down sights',
+  'Magazine': 'Ammo capacity per magazine',
+  'Charge Time': 'Time to fully charge before firing',
+  'Draw Time': 'Time to ready weapon after switching',
+  'Blast Radius': 'Area of effect damage radius',
+  'Velocity': 'Projectile speed',
+  'Accuracy': 'Precision and consistency',
+  'Shield Duration': 'How long the shield lasts',
+  'Swing Speed': 'Speed of melee attacks',
+  'Charge Rate': 'Speed of charging abilities'
 };
 
 /**
@@ -116,7 +150,7 @@ function transformItemForCSV(item, category, statDefs = null) {
       }
     }
     
-    // Extract investment stats if available (for weapons)
+    // Extract investment stats if available (for weapons, abilities, mods, etc.)
     if (item.investmentStats) {
       item.investmentStats.forEach(stat => {
         const statName = resolveStatName(stat.statTypeHash, statDefs);
@@ -186,14 +220,8 @@ function transformItemForCSV(item, category, statDefs = null) {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     transformed.damageType = item.talentGrid?.hudDamageType || '';
     
-    // Add cooldown information if available
-    if (item.investmentStats && item.investmentStats.length > 0) {
-      const stats = item.investmentStats.map(stat => {
-        const statName = resolveStatName(stat.statTypeHash, statDefs);
-        return `${statName}: ${stat.value}`;
-      }).join(', ');
-      transformed.stats = stats;
-    }
+    // Note: investmentStats are already processed above in the general stats handling (lines 119-127)
+    // This creates individual columns for each stat rather than concatenating them
   } else if (category === 'damageTypes') {
     // Special handling for damage types
     transformed.enumValue = item.enumValue || '';
@@ -215,6 +243,10 @@ function transformItemForCSV(item, category, statDefs = null) {
       }).join(', ');
       transformed.statBonuses = statBonuses;
     }
+  } else if (category === 'statReference') {
+    // Stat reference is already in the correct format
+    // Just return the item as-is since it's already structured properly
+    return item;
   }
   
   // Add enriched perks if available (with names and descriptions)
@@ -295,6 +327,42 @@ function exportToCSV(data, filename, category, statDefs = null) {
 }
 
 /**
+ * Generate stat reference data for buildcrafting
+ * Returns a list of all stats with their descriptions
+ * @returns {object[]} - Array of stat reference objects
+ */
+function generateStatReference() {
+  const statReference = [];
+  
+  // Add armor stats (Armor 3.0 system)
+  const armorStats = ['Mobility', 'Resilience', 'Recovery', 'Discipline', 'Intellect', 'Strength'];
+  armorStats.forEach(statName => {
+    statReference.push({
+      statName,
+      category: 'Armor Stats (Armor 3.0)',
+      description: STAT_DESCRIPTIONS[statName] || '',
+      relevantFor: 'Armor, Abilities, Fragments, Aspects, Armor Mods'
+    });
+  });
+  
+  // Add commonly used weapon stats
+  const weaponStats = ['Impact', 'Range', 'Stability', 'Handling', 'Reload Speed', 'RPM (Rounds Per Minute)', 
+                       'Aim Assistance', 'Recoil Direction', 'Magazine', 'Zoom'];
+  weaponStats.forEach(statName => {
+    if (STAT_DESCRIPTIONS[statName]) {
+      statReference.push({
+        statName,
+        category: 'Weapon Stats',
+        description: STAT_DESCRIPTIONS[statName],
+        relevantFor: 'Weapons'
+      });
+    }
+  });
+  
+  return statReference;
+}
+
+/**
  * Export all build crafting data to CSV files
  * @param {object} buildData - Build crafting data object
  * @param {string} outputDir - Output directory
@@ -312,7 +380,8 @@ function exportAllToCSV(buildData, outputDir, statDefs = null) {
     { name: 'damage-types', data: buildData.damageTypes, category: 'damageTypes' },
     { name: 'artifact-mods', data: buildData.artifactMods, category: 'artifactMods' },
     { name: 'champion-mods', data: buildData.championMods, category: 'championMods' },
-    { name: 'enemy-weaknesses', data: buildData.enemyWeaknesses, category: 'enemyWeaknesses' }
+    { name: 'enemy-weaknesses', data: buildData.enemyWeaknesses, category: 'enemyWeaknesses' },
+    { name: 'stat-reference', data: generateStatReference(), category: 'statReference' }
   ];
   
   for (const { name, data, category } of exports) {
@@ -329,5 +398,7 @@ module.exports = {
   transformItemForCSV,
   transformItemsForCSV,
   resolveStatName,
-  STAT_HASHES
+  generateStatReference,
+  STAT_HASHES,
+  STAT_DESCRIPTIONS
 };

@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const ExcelJS = require('exceljs');
-const { transformItemsForCSV } = require('./csvExport');
+const { transformItemsForCSV, generateStatReference } = require('./csvExport');
 
 /**
  * Export data to Excel worksheet
@@ -99,6 +99,7 @@ async function exportAllToExcel(buildData, filename, statDefs = null) {
     
     // Add worksheets for each category
     const worksheets = [
+      { name: 'Stat Reference', data: generateStatReference(), category: 'statReference' },
       { name: 'Weapons', data: buildData.weapons, category: 'weapons' },
       { name: 'Armor', data: buildData.armor, category: 'armor' },
       { name: 'Armor Mods', data: buildData.armorMods, category: 'armorMods' },
@@ -136,6 +137,7 @@ async function exportAllToExcel(buildData, filename, statDefs = null) {
  */
 async function exportAllToSeparateExcelFiles(buildData, outputDir, statDefs = null) {
   const exports = [
+    { name: 'stat-reference', data: generateStatReference(), category: 'statReference' },
     { name: 'weapons', data: buildData.weapons, category: 'weapons' },
     { name: 'armor', data: buildData.armor, category: 'armor' },
     { name: 'armor-mods', data: buildData.armorMods, category: 'armorMods' },

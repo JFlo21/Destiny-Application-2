@@ -524,25 +524,25 @@ async function getSubclassItems(client) {
   const subclassItems = filterByCategory(items, ITEM_CATEGORIES.SUBCLASS);
   
   // Aspects have specific plug category identifiers
-  // Look for items that have "aspect" in their plug category or item type
+  // Match by plugCategoryIdentifier or itemTypeDisplayName (not by name to avoid false positives)
   const aspects = Object.values(items).filter(item => {
     const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
-    const name = item.displayProperties?.name?.toLowerCase() || '';
     
-    // Match aspects by plug category identifier, item type, or name
-    return plugCat.includes('aspect') || itemType.includes('aspect') || name.includes('aspect');
+    // Match aspects by plug category identifier or item type display name only
+    // Do NOT match by name as this can capture unrelated items like weapons with "aspect" in their name
+    return plugCat.includes('aspects') || itemType === 'aspect';
   });
   
   // Fragments have specific plug category identifiers  
-  // Look for items that have "fragment" in their plug category or item type
+  // Match by plugCategoryIdentifier or itemTypeDisplayName (not by name to avoid false positives)
   const fragments = Object.values(items).filter(item => {
     const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
-    const name = item.displayProperties?.name?.toLowerCase() || '';
     
-    // Match fragments by plug category identifier, item type, or name
-    return plugCat.includes('fragment') || itemType.includes('fragment') || name.includes('fragment');
+    // Match fragments by plug category identifier or item type display name only
+    // Do NOT match by name as this can capture unrelated items like weapons with "fragment" in their name
+    return plugCat.includes('fragments') || itemType === 'fragment';
   });
   
   // Get subclass abilities (grenades, melees, class abilities, supers)
@@ -602,15 +602,16 @@ async function getDamageTypes(client) {
 }
 
 /**
- * Gets artifact mods (seasonal artifact mods) - current season only
+ * Gets artifact mods (seasonal artifact mods)
  * Artifact mods are typically plugs with specific identifiers
  * Filters out redacted and non-equippable items
+ * Note: Includes all artifact mods without strict season filtering, as the Bungie API
+ * may not consistently set seasonHash on all artifact mods
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of artifact mod definitions from current season
+ * @returns {Promise<object[]>} - Array of artifact mod definitions
  */
 async function getArtifactMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  const seasonHash = await getCurrentSeasonHash(client);
   
   // Artifact mods have specific patterns in their plug category or item type
   const allArtifactMods = Object.values(items).filter(item => {
@@ -621,28 +622,28 @@ async function getArtifactMods(client) {
     const itemType = item.itemTypeDisplayName?.toLowerCase() || '';
     
     // Artifact mods typically have "artifact" in their identifier or type
-    // More specific filtering to avoid false positives
-    return (plugCat.includes('artifact') || 
-            itemType.includes('artifact') ||
-            (plugCat.includes('seasonal') && item.seasonHash));
+    // Match artifact mods based on plug category or item type
+    return plugCat.includes('artifact') || 
+           itemType.includes('artifact') ||
+           plugCat.includes('seasonal_artifact');
   });
   
-  // Filter to only current season
-  const currentSeasonMods = filterByCurrentSeason(allArtifactMods, seasonHash);
-  
-  // Filter to only usable items
-  return filterUsableItems(currentSeasonMods);
+  // Filter to only usable items (not redacted, equippable, with names)
+  // Note: Season filtering removed as it was too restrictive - the Bungie API
+  // does not consistently set seasonHash on all artifact mods
+  return filterUsableItems(allArtifactMods);
 }
 
 /**
- * Gets champion mods (anti-barrier, overload, unstoppable) - current season only
+ * Gets champion mods (anti-barrier, overload, unstoppable)
  * Filters out redacted and non-equippable items
+ * Note: Includes all champion mods without strict season filtering, as the Bungie API
+ * may not consistently set seasonHash on all champion mods
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of champion mod definitions from current season
+ * @returns {Promise<object[]>} - Array of champion mod definitions
  */
 async function getChampionMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  const seasonHash = await getCurrentSeasonHash(client);
   
   const allChampionMods = Object.values(items).filter(item => {
     if (!item.plug) return false;
@@ -669,11 +670,9 @@ async function getChampionMods(client) {
     );
   });
   
-  // Filter to only current season
-  const currentSeasonMods = filterByCurrentSeason(allChampionMods, seasonHash);
-  
-  // Filter to only usable items
-  return filterUsableItems(currentSeasonMods);
+  // Filter to only usable items (not redacted, equippable, with names)
+  // Note: Season filtering removed as it was too restrictive
+  return filterUsableItems(allChampionMods);
 }
 
 /**
@@ -706,10 +705,10 @@ async function getAllBuildCraftingData(client) {
   console.log(`Found ${damageTypes.length} damage types`);
   
   const artifactMods = await getArtifactMods(client);
-  console.log(`Found ${artifactMods.length} artifact mods from ${seasonName}`);
+  console.log(`Found ${artifactMods.length} artifact mods`);
   
   const championMods = await getChampionMods(client);
-  console.log(`Found ${championMods.length} champion mods from ${seasonName}`);
+  console.log(`Found ${championMods.length} champion mods`);
   
   // Enrich all items with comprehensive data (stats, perks, damage types)
   console.log('\nEnriching items with comprehensive definitions...');

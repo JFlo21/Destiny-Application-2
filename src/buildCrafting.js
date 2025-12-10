@@ -531,7 +531,8 @@ async function getSubclassItems(client) {
     
     // Match aspects by plug category identifier or item type display name only
     // Do NOT match by name as this can capture unrelated items like weapons with "aspect" in their name
-    return plugCat.includes('aspects') || itemType === 'aspect';
+    // Note: plugCat.includes('aspect') will match both 'aspect' and 'aspects' in the identifier
+    return plugCat.includes('aspect') || itemType === 'aspect';
   });
   
   // Fragments have specific plug category identifiers  
@@ -542,7 +543,8 @@ async function getSubclassItems(client) {
     
     // Match fragments by plug category identifier or item type display name only
     // Do NOT match by name as this can capture unrelated items like weapons with "fragment" in their name
-    return plugCat.includes('fragments') || itemType === 'fragment';
+    // Note: plugCat.includes('fragment') will match both 'fragment' and 'fragments' in the identifier
+    return plugCat.includes('fragment') || itemType === 'fragment';
   });
   
   // Get subclass abilities (grenades, melees, class abilities, supers)

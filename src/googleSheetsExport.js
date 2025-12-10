@@ -1,5 +1,5 @@
 const { google } = require('googleapis');
-const { transformItemsForCSV, generateStatReference } = require('./csvExport');
+const { transformItemsForCSV, generateStatReference, generateSummaryData } = require('./csvExport');
 
 /**
  * Create Google Sheets API client
@@ -57,27 +57,6 @@ function dataToSheetValues(transformedData) {
 }
 
 /**
- * Generate summary data for build crafting counts
- * @param {object} buildData - Build crafting data object
- * @returns {array} - Array of summary objects
- */
-function generateSummary(buildData) {
-  return [
-    { category: 'Weapons', count: buildData.weapons?.length || 0 },
-    { category: 'Armor', count: buildData.armor?.length || 0 },
-    { category: 'Armor Mods', count: buildData.armorMods?.length || 0 },
-    { category: 'Subclasses', count: buildData.subclasses?.length || 0 },
-    { category: 'Aspects', count: buildData.aspects?.length || 0 },
-    { category: 'Fragments', count: buildData.fragments?.length || 0 },
-    { category: 'Abilities', count: buildData.abilities?.length || 0 },
-    { category: 'Damage Types', count: buildData.damageTypes?.length || 0 },
-    { category: 'Artifact Mods', count: buildData.artifactMods?.length || 0 },
-    { category: 'Champion Mods', count: buildData.championMods?.length || 0 },
-    { category: 'Enemy Weaknesses', count: buildData.enemyWeaknesses?.length || 0 }
-  ];
-}
-
-/**
  * Create a new Google Sheet with build crafting data
  * @param {object} sheets - Google Sheets API client
  * @param {string} title - Title for the spreadsheet
@@ -103,7 +82,7 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
     
     // Prepare worksheets data
     const worksheets = [
-      { name: 'Summary', data: generateSummary(buildData), category: 'summary' },
+      { name: 'Summary', data: generateSummaryData(buildData), category: 'summary' },
       { name: 'Stat Reference', data: generateStatReference(), category: 'statReference' },
       { name: 'Weapons', data: buildData.weapons, category: 'weapons' },
       { name: 'Armor', data: buildData.armor, category: 'armor' },
@@ -259,6 +238,5 @@ module.exports = {
   createSheetsClient,
   createBuildCraftingSheet,
   exportToGoogleSheets,
-  dataToSheetValues,
-  generateSummary
+  dataToSheetValues
 };

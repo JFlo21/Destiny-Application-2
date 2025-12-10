@@ -190,10 +190,12 @@ To export to Google Sheets, you need a Google service account with Google Sheets
 **For detailed instructions, see [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md)**
 
 The Google Sheets export creates a new spreadsheet with:
+- Stat Reference worksheet as the first sheet explaining what each stat does
 - All categories in separate worksheets (weapons, armor, mods, aspects, fragments, abilities, damage types, artifact mods, champion mods, enemy weaknesses)
 - Formatted headers with bold text and background color
 - Frozen header row for easy navigation
 - Resolved perk names and damage type information
+- Individual stat columns for abilities (not concatenated strings)
 - Enemy weakness reference data for build planning
 - Shareable link that you can distribute to your team or community
 

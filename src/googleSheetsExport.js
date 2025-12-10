@@ -1,5 +1,5 @@
 const { google } = require('googleapis');
-const { transformItemsForCSV } = require('./csvExport');
+const { transformItemsForCSV, generateStatReference } = require('./csvExport');
 
 /**
  * Create Google Sheets API client
@@ -82,6 +82,7 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
     
     // Prepare worksheets data
     const worksheets = [
+      { name: 'Stat Reference', data: generateStatReference(), category: 'statReference' },
       { name: 'Weapons', data: buildData.weapons, category: 'weapons' },
       { name: 'Armor', data: buildData.armor, category: 'armor' },
       { name: 'Armor Mods', data: buildData.armorMods, category: 'armorMods' },

@@ -379,8 +379,36 @@ function filterByCategory(items, categoryHash) {
 }
 
 /**
- * Filters items to only include current season (Season 28 - Renegades)
- * Only returns items that have the exact seasonHash for Season 28
+ * Filters out redacted (hidden/unreleased) and non-equippable items
+ * This ensures only current, usable items are included in build crafting data
+ * @param {object[]} items - Items to filter
+ * @returns {object[]} - Filtered items that are not redacted and are equippable
+ */
+function filterUsableItems(items) {
+  return items.filter(item => {
+    // Exclude redacted items (hidden/unreleased content)
+    if (item.redacted === true) {
+      return false;
+    }
+    
+    // Exclude items that cannot be equipped
+    // Some items are in the API but aren't meant to be used by players
+    if (item.equippable === false) {
+      return false;
+    }
+    
+    // Exclude items without a name (likely placeholders or incomplete data)
+    if (!item.displayProperties?.name) {
+      return false;
+    }
+    
+    return true;
+  });
+}
+
+/**
+ * Filters items to only include current season
+ * Only returns items that have the exact seasonHash matching the current active season
  * Items without a seasonHash or with a different season will be excluded
  * @param {object[]} items - Items to filter
  * @param {number} seasonHash - Season hash to filter by
@@ -400,6 +428,7 @@ function filterByCurrentSeason(items, seasonHash) {
 
 /**
  * Gets all weapons from the manifest
+ * Filters out redacted and non-equippable items to ensure only current, usable weapons
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of weapon definitions
  */
@@ -407,8 +436,10 @@ async function getWeapons(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   const allWeapons = filterByCategory(items, ITEM_CATEGORIES.WEAPON);
   
-  // Return all weapons (no season filtering)
-  return allWeapons;
+  // Filter to only usable items (not redacted, equippable, with names)
+  const usableWeapons = filterUsableItems(allWeapons);
+  
+  return usableWeapons;
 }
 
 /**
@@ -435,6 +466,7 @@ function isArmor2_0(item) {
 
 /**
  * Gets all armor from the manifest (Armor 2.0 only)
+ * Filters out legacy armor, redacted items, and non-equippable items
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of Armor 2.0 definitions
  */
@@ -445,8 +477,10 @@ async function getArmor(client) {
   // Filter for Armor 2.0 only (excludes legacy armor with old mod system)
   const armor2_0 = allArmor.filter(item => isArmor2_0(item));
   
-  // Return all Armor 2.0 items (no season filtering)
-  return armor2_0;
+  // Filter to only usable items (not redacted, equippable, with names)
+  const usableArmor = filterUsableItems(armor2_0);
+  
+  return usableArmor;
 }
 
 /**
@@ -456,6 +490,7 @@ const ARMOR_2_0_MOD_IDENTIFIERS = ['v2', 'enhancements', 'armor_tier'];
 
 /**
  * Gets all armor mods from the manifest (Armor 2.0 mods only)
+ * Filters out legacy mods, redacted items, and non-equippable items
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of Armor 2.0 mod definitions
  */
@@ -479,12 +514,15 @@ async function getArmorMods(client) {
     return false;
   });
   
-  // Return all Armor 2.0 mods (no season filtering)
-  return armor2_0Mods;
+  // Filter to only usable items (not redacted, equippable, with names)
+  const usableMods = filterUsableItems(armor2_0Mods);
+  
+  return usableMods;
 }
 
 /**
  * Gets subclass-related items (aspects, fragments, abilities)
+ * Filters out redacted and non-equippable items
  * @param {object} client - Bungie API client
  * @returns {Promise<object>} - Object containing aspects, fragments, and abilities
  */
@@ -532,15 +570,15 @@ async function getSubclassItems(client) {
            plugCat.includes('v400.plugs.abilities');
   });
   
-  // Return all subclass items (no season filtering)
+  // Filter all subclass items to only include usable items
   // Note: Subclass aspects, fragments, and abilities persist across seasons.
   // Unlike seasonal artifact mods which change each season, these subclass items
   // remain available to players indefinitely once unlocked, so we export all of them.
   return {
-    subclasses: subclassItems,
-    aspects: aspects,
-    fragments: fragments,
-    abilities: abilities
+    subclasses: filterUsableItems(subclassItems),
+    aspects: filterUsableItems(aspects),
+    fragments: filterUsableItems(fragments),
+    abilities: filterUsableItems(abilities)
   };
 }
 
@@ -579,6 +617,7 @@ async function getDamageTypes(client) {
 /**
  * Gets artifact mods (seasonal artifact mods) - current season only
  * Artifact mods are typically plugs with specific identifiers
+ * Filters out redacted and non-equippable items
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of artifact mod definitions from current season
  */
@@ -602,11 +641,15 @@ async function getArtifactMods(client) {
   });
   
   // Filter to only current season
-  return filterByCurrentSeason(allArtifactMods, seasonHash);
+  const currentSeasonMods = filterByCurrentSeason(allArtifactMods, seasonHash);
+  
+  // Filter to only usable items
+  return filterUsableItems(currentSeasonMods);
 }
 
 /**
  * Gets champion mods (anti-barrier, overload, unstoppable) - current season only
+ * Filters out redacted and non-equippable items
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of champion mod definitions from current season
  */
@@ -640,7 +683,10 @@ async function getChampionMods(client) {
   });
   
   // Filter to only current season
-  return filterByCurrentSeason(allChampionMods, seasonHash);
+  const currentSeasonMods = filterByCurrentSeason(allChampionMods, seasonHash);
+  
+  // Filter to only usable items
+  return filterUsableItems(currentSeasonMods);
 }
 
 /**
@@ -741,6 +787,7 @@ module.exports = {
   getCurrentSeasonNumber,
   getCurrentSeasonName,
   filterByCurrentSeason,
+  filterUsableItems,
   enrichItemWithStats,
   enrichItemWithPerks,
   enrichItemsWithStatNames,

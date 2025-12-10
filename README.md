@@ -5,20 +5,31 @@ A Node.js application that fetches build crafting data from the Bungie API for D
 ## Features
 
 - **AUTOMATIC SEASON DETECTION:** Dynamically detects the current active season
+- **CURRENT EXPANSION DATA:** Filters out redacted (unreleased) and non-equippable items to ensure clean, up-to-date data
 - Fetches **all weapons** from the Destiny 2 manifest with detailed stats
+  - Filters out hidden and non-equippable items
+  - Stats are always current from the API (reflects latest balance changes)
 - Fetches **all Armor 2.0** armor data (helmets, gauntlets, chest, legs, class items)
   - Filters out legacy armor (pre-Shadowkeep)
+  - Filters out hidden and non-equippable items
   - Includes energy capacity and mod socket information
+  - Stats are always current from the API (reflects latest balance changes)
 - Fetches **all Armor 2.0 mods** with energy costs and stat bonuses
   - Excludes legacy mods from the old system
+  - Filters out hidden and non-equippable items
 - Fetches **all subclass aspects** with stat modifiers
+  - Filters out hidden and non-equippable items
 - Fetches **all subclass fragments** with stat bonuses/penalties
+  - Filters out hidden and non-equippable items
 - Fetches **all subclass abilities** (grenades, melees, class abilities, supers)
+  - Filters out hidden and non-equippable items
 - Fetches damage type definitions with elemental weaknesses
 - Fetches artifact mods (seasonal artifact modifications)
   - **Only returns artifact mods from the current active season**
+  - Filters out hidden and non-equippable items
 - Fetches champion mods (anti-barrier, overload, unstoppable)
   - **Only returns champion mods from the current active season**
+  - Filters out hidden and non-equippable items
 - Includes enemy weakness reference data for all factions
   - Shield types and elemental weaknesses by enemy faction
   - Champion types and counters
@@ -29,6 +40,9 @@ A Node.js application that fetches build crafting data from the Bungie API for D
 - Displays **actual numeric stat values** for easy build crafting
 - Caches manifest data to minimize API calls
 - **Always up-to-date with current Destiny 2 content**
+  - Fetches fresh manifest data on each run
+  - Stat definitions are loaded from the API (reflects current stat names and values)
+  - Filters out unreleased/redacted content
 
 ## Installation
 

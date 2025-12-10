@@ -11,6 +11,7 @@ const {
   isArmor2_0,
   enrichItemWithStats,
   getCurrentSeasonNumber,
+  filterUsableItems,
   ITEM_CATEGORIES,
   ARMOR_2_0_PLUG_SET_HASH
 } = require('../src/buildCrafting');
@@ -150,6 +151,45 @@ test('enrichItemWithStats adds enriched stats to item', () => {
   assert(enriched.enrichedStats['2996146975'], 'Should have stat hash key');
   assertEqual(enriched.enrichedStats['2996146975'].name, 'Mobility', 'Stat name should be Mobility');
   assertEqual(enriched.enrichedStats['2996146975'].value, 10, 'Stat value should be 10');
+});
+
+test('filterUsableItems filters out redacted items', () => {
+  const items = [
+    { displayProperties: { name: 'Valid Item' }, equippable: true, redacted: false },
+    { displayProperties: { name: 'Redacted Item' }, equippable: true, redacted: true }
+  ];
+  const filtered = filterUsableItems(items);
+  assertEqual(filtered.length, 1, 'Should filter out redacted items');
+  assertEqual(filtered[0].displayProperties.name, 'Valid Item', 'Should keep valid item');
+});
+
+test('filterUsableItems filters out non-equippable items', () => {
+  const items = [
+    { displayProperties: { name: 'Equippable' }, equippable: true },
+    { displayProperties: { name: 'Non-Equippable' }, equippable: false }
+  ];
+  const filtered = filterUsableItems(items);
+  assertEqual(filtered.length, 1, 'Should filter out non-equippable items');
+  assertEqual(filtered[0].displayProperties.name, 'Equippable', 'Should keep equippable item');
+});
+
+test('filterUsableItems filters out items without names', () => {
+  const items = [
+    { displayProperties: { name: 'Named Item' }, equippable: true },
+    { displayProperties: {}, equippable: true },
+    { equippable: true }
+  ];
+  const filtered = filterUsableItems(items);
+  assertEqual(filtered.length, 1, 'Should filter out unnamed items');
+  assertEqual(filtered[0].displayProperties.name, 'Named Item', 'Should keep named item');
+});
+
+test('filterUsableItems keeps items with undefined equippable (defaults to equippable)', () => {
+  const items = [
+    { displayProperties: { name: 'Item' } }
+  ];
+  const filtered = filterUsableItems(items);
+  assertEqual(filtered.length, 1, 'Should keep items with undefined equippable');
 });
 
 // Integration Tests (require network access)

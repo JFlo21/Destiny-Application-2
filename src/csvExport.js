@@ -247,6 +247,10 @@ function transformItemForCSV(item, category, statDefs = null) {
     // Stat reference is already in the correct format
     // Just return the item as-is since it's already structured properly
     return item;
+  } else if (category === 'summary') {
+    // Summary is already in the correct format (category and count)
+    // Just return the item as-is since it's already structured properly
+    return item;
   }
   
   // Add enriched perks if available (with names and descriptions)

@@ -465,10 +465,11 @@ function isArmor2_0(item) {
 }
 
 /**
- * Gets all armor from the manifest (Armor 2.0 only)
- * Filters out legacy armor, redacted items, and non-equippable items
+ * Gets all armor from the manifest
+ * Filters out redacted items and non-equippable items to ensure only current, usable armor
+ * Note: As of 2024+, all armor in Destiny 2 uses the Armor 2.0 system (legacy armor was sunset)
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of Armor 2.0 definitions
+ * @returns {Promise<object[]>} - Array of armor definitions
  */
 async function getArmor(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
@@ -490,10 +491,11 @@ async function getArmor(client) {
 const ARMOR_2_0_MOD_IDENTIFIERS = ['v2', 'enhancements', 'armor_tier'];
 
 /**
- * Gets all armor mods from the manifest (Armor 2.0 mods only)
- * Filters out legacy mods, redacted items, and non-equippable items
+ * Gets all armor mods from the manifest
+ * Filters out redacted items and non-equippable items to ensure only current, usable mods
+ * Note: As of 2024+, all mods in Destiny 2 are compatible with the Armor 2.0 system (legacy mods were sunset)
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of Armor 2.0 mod definitions
+ * @returns {Promise<object[]>} - Array of armor mod definitions
  */
 async function getArmorMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');

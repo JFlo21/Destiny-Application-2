@@ -153,8 +153,8 @@ All export formats transform the raw Bungie API data into a more readable format
 Exported files include:
 - `stat-reference.csv/xlsx` - **NEW:** Reference guide explaining what each stat does (Mobility, Resilience, Recovery, etc.) for buildcrafting
 - `weapons.csv/xlsx/json` - All weapons with stats like Impact, Range, Stability, perk names, damage types, etc.
-- `armor.csv/xlsx/json` - All **Armor 2.0/3.0** pieces with Mobility, Resilience, Recovery, energy capacity, perks, etc.
-- `armor-mods.csv/xlsx/json` - All **Armor 2.0/3.0** mods with energy costs, slot information, and stat bonuses
+- `armor.csv/xlsx/json` - All **Armor 3.0** pieces with Mobility, Resilience, Recovery, energy capacity, perks, etc.
+- `armor-mods.csv/xlsx/json` - All **Armor 3.0** mods with energy costs, slot information, and stat bonuses
 - `aspects.csv/xlsx/json` - Subclass aspects with stat modifiers and perks
 - `fragments.csv/xlsx/json` - Subclass fragments with stat bonuses/penalties
 - `abilities.csv/xlsx/json` - Subclass abilities (grenades, melees, class abilities, supers) with individual stat columns

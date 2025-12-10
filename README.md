@@ -168,7 +168,8 @@ Exported files include:
 #### Excel Export Features
 
 The Excel export includes additional features:
-- **Stat Reference Sheet**: First worksheet explains what each stat does (e.g., "Resilience increases maximum health and shield capacity")
+- **Summary Sheet**: First worksheet showing counts for all data categories (weapons, armor, mods, etc.)
+- **Stat Reference Sheet**: Second worksheet explains what each stat does (e.g., "Resilience increases maximum health and shield capacity")
 - **Multiple worksheets**: Each category gets its own worksheet in the master file
 - **Formatted headers**: Bold headers with background color
 - **Auto-filters**: Enable easy filtering and sorting
@@ -190,7 +191,8 @@ To export to Google Sheets, you need a Google service account with Google Sheets
 **For detailed instructions, see [GOOGLE_SHEETS_SETUP.md](./GOOGLE_SHEETS_SETUP.md)**
 
 The Google Sheets export creates a new spreadsheet with:
-- Stat Reference worksheet as the first sheet explaining what each stat does
+- Summary worksheet as the first sheet showing counts for all data categories (weapons, armor, mods, etc.)
+- Stat Reference worksheet explaining what each stat does
 - All categories in separate worksheets (weapons, armor, mods, aspects, fragments, abilities, damage types, artifact mods, champion mods, enemy weaknesses)
 - Formatted headers with bold text and background color
 - Frozen header row for easy navigation

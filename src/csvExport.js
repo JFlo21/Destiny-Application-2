@@ -369,6 +369,27 @@ function generateStatReference() {
 }
 
 /**
+ * Generate summary data for build crafting counts
+ * @param {object} buildData - Build crafting data object
+ * @returns {array} - Array of summary objects
+ */
+function generateSummaryData(buildData) {
+  return [
+    { category: 'Weapons', count: buildData.weapons?.length || 0 },
+    { category: 'Armor', count: buildData.armor?.length || 0 },
+    { category: 'Armor Mods', count: buildData.armorMods?.length || 0 },
+    { category: 'Subclasses', count: buildData.subclasses?.length || 0 },
+    { category: 'Aspects', count: buildData.aspects?.length || 0 },
+    { category: 'Fragments', count: buildData.fragments?.length || 0 },
+    { category: 'Abilities', count: buildData.abilities?.length || 0 },
+    { category: 'Damage Types', count: buildData.damageTypes?.length || 0 },
+    { category: 'Artifact Mods', count: buildData.artifactMods?.length || 0 },
+    { category: 'Champion Mods', count: buildData.championMods?.length || 0 },
+    { category: 'Enemy Weaknesses', count: buildData.enemyWeaknesses?.length || 0 }
+  ];
+}
+
+/**
  * Export all build crafting data to CSV files
  * @param {object} buildData - Build crafting data object
  * @param {string} outputDir - Output directory
@@ -376,6 +397,7 @@ function generateStatReference() {
  */
 function exportAllToCSV(buildData, outputDir, statDefs = null) {
   const exports = [
+    { name: 'summary', data: generateSummaryData(buildData), category: 'summary' },
     { name: 'weapons', data: buildData.weapons, category: 'weapons' },
     { name: 'armor', data: buildData.armor, category: 'armor' },
     { name: 'armor-mods', data: buildData.armorMods, category: 'armorMods' },
@@ -405,6 +427,7 @@ module.exports = {
   transformItemsForCSV,
   resolveStatName,
   generateStatReference,
+  generateSummaryData,
   STAT_HASHES,
   STAT_DESCRIPTIONS
 };

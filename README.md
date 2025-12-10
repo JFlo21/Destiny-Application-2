@@ -151,27 +151,30 @@ All export formats transform the raw Bungie API data into a more readable format
 #### Available Export Files
 
 Exported files include:
+- `stat-reference.csv/xlsx` - **NEW:** Reference guide explaining what each stat does (Mobility, Resilience, Recovery, etc.) for buildcrafting
 - `weapons.csv/xlsx/json` - All weapons with stats like Impact, Range, Stability, perk names, damage types, etc.
-- `armor.csv/xlsx/json` - All **Armor 2.0** pieces with Mobility, Resilience, Recovery, energy capacity, perks, etc.
-- `armor-mods.csv/xlsx/json` - All **Armor 2.0** mods with energy costs, slot information, and stat bonuses
+- `armor.csv/xlsx/json` - All **Armor 2.0/3.0** pieces with Mobility, Resilience, Recovery, energy capacity, perks, etc.
+- `armor-mods.csv/xlsx/json` - All **Armor 2.0/3.0** mods with energy costs, slot information, and stat bonuses
 - `aspects.csv/xlsx/json` - Subclass aspects with stat modifiers and perks
 - `fragments.csv/xlsx/json` - Subclass fragments with stat bonuses/penalties
-- `abilities.csv/xlsx/json` - Subclass abilities (grenades, melees, class abilities, supers)
-- `damage-types.csv/xlsx/json` - **NEW:** All damage types with elemental information
-- `artifact-mods.csv/xlsx/json` - **NEW:** Seasonal artifact mods
-- `champion-mods.csv/xlsx/json` - **NEW:** Champion mods (anti-barrier, overload, unstoppable)
-- `enemy-weaknesses.csv/xlsx/json` - **NEW:** Enemy faction shield types and elemental weaknesses
+- `abilities.csv/xlsx/json` - Subclass abilities (grenades, melees, class abilities, supers) with individual stat columns
+- `damage-types.csv/xlsx/json` - All damage types with elemental information
+- `artifact-mods.csv/xlsx/json` - Seasonal artifact mods (current season only)
+- `champion-mods.csv/xlsx/json` - Champion mods (anti-barrier, overload, unstoppable) from current season
+- `enemy-weaknesses.csv/xlsx/json` - Enemy faction shield types and elemental weaknesses
 - `subclasses.csv/xlsx` - All subclass items
 - `destiny2-build-data-master.xlsx` - Master Excel file with all categories in separate worksheets
 
 #### Excel Export Features
 
 The Excel export includes additional features:
+- **Stat Reference Sheet**: First worksheet explains what each stat does (e.g., "Resilience increases maximum health and shield capacity")
 - **Multiple worksheets**: Each category gets its own worksheet in the master file
 - **Formatted headers**: Bold headers with background color
 - **Auto-filters**: Enable easy filtering and sorting
 - **Frozen header row**: Headers stay visible when scrolling
 - **Optimized column widths**: Columns are automatically sized for readability
+- **Individual stat columns**: Abilities, aspects, and fragments show stats as separate columns instead of concatenated strings
 
 #### Google Sheets Export
 

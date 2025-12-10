@@ -399,17 +399,16 @@ function filterByCurrentSeason(items, seasonHash) {
 }
 
 /**
- * Gets all weapons from the manifest (current season only - Renegades)
+ * Gets all weapons from the manifest
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of weapon definitions from current season
+ * @returns {Promise<object[]>} - Array of weapon definitions
  */
 async function getWeapons(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   const allWeapons = filterByCategory(items, ITEM_CATEGORIES.WEAPON);
   
-  // Filter to only current season (Season 28 - Renegades)
-  const seasonHash = await getCurrentSeasonHash(client);
-  return filterByCurrentSeason(allWeapons, seasonHash);
+  // Return all weapons (no season filtering)
+  return allWeapons;
 }
 
 /**
@@ -435,9 +434,9 @@ function isArmor2_0(item) {
 }
 
 /**
- * Gets all armor from the manifest (Armor 2.0 only, current season - Renegades)
+ * Gets all armor from the manifest (Armor 2.0 only)
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of armor definitions from current season
+ * @returns {Promise<object[]>} - Array of Armor 2.0 definitions
  */
 async function getArmor(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
@@ -446,9 +445,8 @@ async function getArmor(client) {
   // Filter for Armor 2.0 only (excludes legacy armor with old mod system)
   const armor2_0 = allArmor.filter(item => isArmor2_0(item));
   
-  // Filter to only current season (Season 28 - Renegades)
-  const seasonHash = await getCurrentSeasonHash(client);
-  return filterByCurrentSeason(armor2_0, seasonHash);
+  // Return all Armor 2.0 items (no season filtering)
+  return armor2_0;
 }
 
 /**
@@ -457,9 +455,9 @@ async function getArmor(client) {
 const ARMOR_2_0_MOD_IDENTIFIERS = ['v2', 'enhancements', 'armor_tier'];
 
 /**
- * Gets all armor mods from the manifest (Armor 2.0 mods only, current season - Renegades)
+ * Gets all armor mods from the manifest (Armor 2.0 mods only)
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of armor mod definitions from current season
+ * @returns {Promise<object[]>} - Array of Armor 2.0 mod definitions
  */
 async function getArmorMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
@@ -481,20 +479,17 @@ async function getArmorMods(client) {
     return false;
   });
   
-  // Filter to only current season (Season 28 - Renegades)
-  const seasonHash = await getCurrentSeasonHash(client);
-  return filterByCurrentSeason(armor2_0Mods, seasonHash);
+  // Return all Armor 2.0 mods (no season filtering)
+  return armor2_0Mods;
 }
 
 /**
- * Gets subclass-related items (aspects, fragments, abilities) from current season
- * Only returns items with Season 28 hash - excludes items from previous seasons
+ * Gets subclass-related items (aspects, fragments, abilities)
  * @param {object} client - Bungie API client
- * @returns {Promise<object>} - Object containing aspects, fragments, and abilities from Season 28
+ * @returns {Promise<object>} - Object containing aspects, fragments, and abilities
  */
 async function getSubclassItems(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  const seasonHash = await getCurrentSeasonHash(client);
   
   // Get all subclass items
   const subclassItems = filterByCategory(items, ITEM_CATEGORIES.SUBCLASS);
@@ -537,17 +532,15 @@ async function getSubclassItems(client) {
            plugCat.includes('v400.plugs.abilities');
   });
   
-  // Filter all subclass-related items to only include Season 28
-  const filteredSubclasses = filterByCurrentSeason(subclassItems, seasonHash);
-  const filteredAspects = filterByCurrentSeason(aspects, seasonHash);
-  const filteredFragments = filterByCurrentSeason(fragments, seasonHash);
-  const filteredAbilities = filterByCurrentSeason(abilities, seasonHash);
-  
+  // Return all subclass items (no season filtering)
+  // Note: Subclass aspects, fragments, and abilities persist across seasons.
+  // Unlike seasonal artifact mods which change each season, these subclass items
+  // remain available to players indefinitely once unlocked, so we export all of them.
   return {
-    subclasses: filteredSubclasses,
-    aspects: filteredAspects,
-    fragments: filteredFragments,
-    abilities: filteredAbilities
+    subclasses: subclassItems,
+    aspects: aspects,
+    fragments: fragments,
+    abilities: abilities
   };
 }
 
@@ -659,22 +652,22 @@ async function getAllBuildCraftingData(client) {
   // Get season name for logging
   const seasonName = await getCurrentSeasonName(client);
   
-  console.log(`\n=== Fetching Build Crafting Data (${seasonName} Only) ===\n`);
+  console.log(`\n=== Fetching Build Crafting Data ===\n`);
   
   const weapons = await getWeapons(client);
-  console.log(`Found ${weapons.length} weapons from ${seasonName}`);
+  console.log(`Found ${weapons.length} weapons`);
   
   const armor = await getArmor(client);
-  console.log(`Found ${armor.length} Armor 2.0 pieces from ${seasonName}`);
+  console.log(`Found ${armor.length} Armor 2.0 pieces`);
   
   const armorMods = await getArmorMods(client);
-  console.log(`Found ${armorMods.length} Armor 2.0 mods from ${seasonName}`);
+  console.log(`Found ${armorMods.length} Armor 2.0 mods`);
   
   const subclassData = await getSubclassItems(client);
-  console.log(`Found ${subclassData.subclasses.length} subclasses from ${seasonName}`);
-  console.log(`Found ${subclassData.aspects.length} aspects from ${seasonName}`);
-  console.log(`Found ${subclassData.fragments.length} fragments from ${seasonName}`);
-  console.log(`Found ${subclassData.abilities.length} abilities from ${seasonName}`);
+  console.log(`Found ${subclassData.subclasses.length} subclasses`);
+  console.log(`Found ${subclassData.aspects.length} aspects`);
+  console.log(`Found ${subclassData.fragments.length} fragments`);
+  console.log(`Found ${subclassData.abilities.length} abilities`);
   
   const damageTypes = await getDamageTypes(client);
   console.log(`Found ${damageTypes.length} damage types`);
@@ -702,7 +695,7 @@ async function getAllBuildCraftingData(client) {
   const enemyWeaknesses = exportEnemyWeaknessData();
   console.log(`Added ${enemyWeaknesses.length} enemy weakness entries`);
   
-  console.log(`\n=== ${seasonName} Data Fetch Complete ===`);
+  console.log(`\n=== Data Fetch Complete ===`);
   
   return {
     weapons: enrichedWeapons,

@@ -619,11 +619,15 @@ async function getDamageTypes(client) {
  * Per Bungie API documentation (https://github.com/Bungie-net/api), artifact mods
  * have specific plugCategoryIdentifier patterns like 'seasonal_artifact_perk' or 'artifact_perk'
  * Filters out redacted and non-equippable items
+ * Only returns artifact mods from the current active season
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of artifact mod definitions
+ * @returns {Promise<object[]>} - Array of artifact mod definitions from current season
  */
 async function getArtifactMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
+  
+  // Get current season hash for filtering
+  const seasonHash = await getCurrentSeasonHash(client);
   
   // Per Bungie API, artifact mods have plugCategoryIdentifier patterns like:
   // - 'seasonal_artifact_perk' or 'seasonal_artifact'
@@ -646,19 +650,24 @@ async function getArtifactMods(client) {
   
   // Filter to only usable items (not redacted, with names)
   // Allow non-equippable items since artifact mods are plugs and may not be marked as equippable
-  return filterUsableItems(allArtifactMods, true);
+  const usableArtifactMods = filterUsableItems(allArtifactMods, true);
+  
+  // Filter to only current season artifact mods
+  return filterByCurrentSeason(usableArtifactMods, seasonHash);
 }
 
 /**
  * Gets champion mods (anti-barrier, overload, unstoppable)
  * Filters out redacted and non-equippable items
- * Note: Includes all champion mods without strict season filtering, as the Bungie API
- * may not consistently set seasonHash on all champion mods
+ * Only returns champion mods from the current active season
  * @param {object} client - Bungie API client
- * @returns {Promise<object[]>} - Array of champion mod definitions
+ * @returns {Promise<object[]>} - Array of champion mod definitions from current season
  */
 async function getChampionMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
+  
+  // Get current season hash for filtering
+  const seasonHash = await getCurrentSeasonHash(client);
   
   const allChampionMods = Object.values(items).filter(item => {
     if (!item.plug) return false;
@@ -687,8 +696,10 @@ async function getChampionMods(client) {
   
   // Filter to only usable items (not redacted, with names)
   // Allow non-equippable items since champion mods are plugs and may not be marked as equippable
-  // Note: Season filtering removed as it was too restrictive
-  return filterUsableItems(allChampionMods, true);
+  const usableChampionMods = filterUsableItems(allChampionMods, true);
+  
+  // Filter to only current season champion mods
+  return filterByCurrentSeason(usableChampionMods, seasonHash);
 }
 
 /**

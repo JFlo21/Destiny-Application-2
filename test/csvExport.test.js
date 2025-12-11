@@ -289,6 +289,22 @@ test('transformItemForCSV with statDefs resolves all stat hashes', () => {
   assertEqual(transformed['Another Stat'], 75, 'Should resolve second custom stat');
 });
 
+test('transformItemForCSV extracts subclass properties', () => {
+  const item = {
+    hash: 999,
+    displayProperties: { name: 'Void 3.0', description: 'Void subclass for Warlock' },
+    classType: 2,
+    defaultDamageType: 3,
+    itemCategoryHashes: [1403, 3379164649]
+  };
+  
+  const transformed = transformItemForCSV(item, 'subclasses');
+  assertEqual(transformed.name, 'Void 3.0');
+  assertEqual(transformed.classType, 'Warlock');
+  assertEqual(transformed.damageType, 3);
+  assert(transformed.itemCategoryHashes.includes('1403'), 'Should include category hashes');
+});
+
 console.log('\n=== Test Summary ===\n');
 console.log(`Total: ${testsRun}`);
 console.log(`Passed: ${testsPassed}`);

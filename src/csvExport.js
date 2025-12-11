@@ -204,6 +204,13 @@ function transformItemForCSV(item, category, statDefs = null) {
       }).join(', ');
       transformed.statBonuses = statBonuses;
     }
+  } else if (category === 'subclasses') {
+    // Subclasses (Void, Solar, Arc, Stasis, Strand) have class type and element type
+    const classTypes = { 0: 'Titan', 1: 'Hunter', 2: 'Warlock' };
+    transformed.classType = item.classType !== undefined ? 
+      (classTypes[item.classType] || 'Any') : '';
+    transformed.damageType = item.defaultDamageType || item.talentGrid?.hudDamageType || '';
+    transformed.itemCategoryHashes = item.itemCategoryHashes?.join(', ') || '';
   } else if (category === 'aspects' || category === 'fragments') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     transformed.damageType = item.talentGrid?.hudDamageType || '';

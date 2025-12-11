@@ -387,9 +387,10 @@ function filterByCategory(items, categoryHash) {
  * Filters out redacted (hidden/unreleased) and non-equippable items
  * This ensures only current, usable items are included in build crafting data
  * @param {object[]} items - Items to filter
- * @returns {object[]} - Filtered items that are not redacted and are equippable
+ * @param {boolean} allowNonEquippable - If true, allows items where equippable is false (for plugs/mods)
+ * @returns {object[]} - Filtered items that are not redacted and are equippable (unless allowNonEquippable is true)
  */
-function filterUsableItems(items) {
+function filterUsableItems(items, allowNonEquippable = false) {
   return items.filter(item => {
     // Exclude redacted items (hidden/unreleased content)
     if (item.redacted === true) {
@@ -398,7 +399,8 @@ function filterUsableItems(items) {
     
     // Exclude items that cannot be equipped
     // Some items are in the API but aren't meant to be used by players
-    if (item.equippable === false) {
+    // Skip this check if allowNonEquippable is true (for plugs like mods, aspects, fragments)
+    if (!allowNonEquippable && item.equippable === false) {
       return false;
     }
     
@@ -510,8 +512,9 @@ async function getArmorMods(client) {
   // The energy cost filter can be overly restrictive if API data structure changes
   // We'll just use filterUsableItems to get current, equippable mods
   
-  // Filter to only usable items (not redacted, equippable, with names)
-  const usableMods = filterUsableItems(allMods);
+  // Filter to only usable items (not redacted, with names)
+  // Allow non-equippable items since armor mods are plugs and may not be marked as equippable
+  const usableMods = filterUsableItems(allMods, true);
   
   return usableMods;
 }
@@ -570,11 +573,12 @@ async function getSubclassItems(client) {
   // Note: Subclass aspects, fragments, and abilities persist across seasons.
   // Unlike seasonal artifact mods which change each season, these subclass items
   // remain available to players indefinitely once unlocked, so we export all of them.
+  // Aspects, fragments, and abilities are plugs and may not be marked as equippable
   return {
     subclasses: filterUsableItems(subclassItems),
-    aspects: filterUsableItems(aspects),
-    fragments: filterUsableItems(fragments),
-    abilities: filterUsableItems(abilities)
+    aspects: filterUsableItems(aspects, true),
+    fragments: filterUsableItems(fragments, true),
+    abilities: filterUsableItems(abilities, true)
   };
 }
 
@@ -640,8 +644,9 @@ async function getArtifactMods(client) {
            itemType.includes('artifact');
   });
   
-  // Filter to only usable items (not redacted, equippable, with names)
-  return filterUsableItems(allArtifactMods);
+  // Filter to only usable items (not redacted, with names)
+  // Allow non-equippable items since artifact mods are plugs and may not be marked as equippable
+  return filterUsableItems(allArtifactMods, true);
 }
 
 /**
@@ -680,9 +685,10 @@ async function getChampionMods(client) {
     );
   });
   
-  // Filter to only usable items (not redacted, equippable, with names)
+  // Filter to only usable items (not redacted, with names)
+  // Allow non-equippable items since champion mods are plugs and may not be marked as equippable
   // Note: Season filtering removed as it was too restrictive
-  return filterUsableItems(allChampionMods);
+  return filterUsableItems(allChampionMods, true);
 }
 
 /**

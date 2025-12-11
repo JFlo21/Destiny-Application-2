@@ -192,6 +192,35 @@ test('filterUsableItems keeps items with undefined equippable (defaults to equip
   assertEqual(filtered.length, 1, 'Should keep items with undefined equippable');
 });
 
+test('filterUsableItems with allowNonEquippable=true keeps non-equippable items', () => {
+  const items = [
+    { displayProperties: { name: 'Equippable' }, equippable: true },
+    { displayProperties: { name: 'Non-Equippable' }, equippable: false }
+  ];
+  const filtered = filterUsableItems(items, true);
+  assertEqual(filtered.length, 2, 'Should keep both equippable and non-equippable items');
+});
+
+test('filterUsableItems with allowNonEquippable=true still filters out redacted items', () => {
+  const items = [
+    { displayProperties: { name: 'Valid Non-Equippable' }, equippable: false, redacted: false },
+    { displayProperties: { name: 'Redacted Non-Equippable' }, equippable: false, redacted: true }
+  ];
+  const filtered = filterUsableItems(items, true);
+  assertEqual(filtered.length, 1, 'Should filter out redacted items even with allowNonEquippable=true');
+  assertEqual(filtered[0].displayProperties.name, 'Valid Non-Equippable', 'Should keep valid non-equippable item');
+});
+
+test('filterUsableItems with allowNonEquippable=false filters out non-equippable items', () => {
+  const items = [
+    { displayProperties: { name: 'Equippable' }, equippable: true },
+    { displayProperties: { name: 'Non-Equippable' }, equippable: false }
+  ];
+  const filtered = filterUsableItems(items, false);
+  assertEqual(filtered.length, 1, 'Should filter out non-equippable items when allowNonEquippable=false');
+  assertEqual(filtered[0].displayProperties.name, 'Equippable', 'Should keep equippable item');
+});
+
 // Integration Tests (require network access)
 async function runIntegrationTests() {
   console.log('\n=== Integration Tests ===\n');

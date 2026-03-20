@@ -10,6 +10,7 @@ const {
   clearCache,
   isArmor2_0,
   enrichItemWithStats,
+  enrichItemWithPerks,
   getCurrentSeasonNumber,
   filterUsableItems,
   ITEM_CATEGORIES,
@@ -127,6 +128,47 @@ test('isArmor2_0 returns true for armor with Armor 2.0 plug set hash', () => {
     }
   };
   assert(isArmor2_0(armor2Item), 'Should return true for armor with Armor 2.0 plug set hash');
+});
+
+test('enrichItemWithPerks resolves damage type using defaultDamageTypeHash', () => {
+  const { enrichItemWithPerks } = require('../src/buildCrafting');
+  const item = {
+    defaultDamageType: 3,           // enum value (Solar)
+    defaultDamageTypeHash: 1847026933, // actual hash for Solar
+    perks: []
+  };
+  const perkDefs = {};
+  const damageTypeDefs = {
+    '1847026933': {
+      displayProperties: { name: 'Solar', description: 'Solar damage' },
+      enumValue: 3
+    }
+  };
+  
+  const enriched = enrichItemWithPerks(item, perkDefs, damageTypeDefs);
+  assert(enriched.enrichedDamageType !== null, 'Should have enrichedDamageType');
+  assertEqual(enriched.enrichedDamageType.name, 'Solar', 'Should resolve damage type name');
+  assertEqual(enriched.enrichedDamageType.hash, 1847026933, 'Should use hash, not enum value');
+  assertEqual(enriched.enrichedDamageType.enumValue, 3, 'Should include enum value');
+});
+
+test('enrichItemWithPerks does not resolve when only defaultDamageType (enum) is present', () => {
+  const { enrichItemWithPerks } = require('../src/buildCrafting');
+  const item = {
+    defaultDamageType: 3,           // only enum value, no hash
+    perks: []
+  };
+  const perkDefs = {};
+  const damageTypeDefs = {
+    '1847026933': {
+      displayProperties: { name: 'Solar', description: 'Solar damage' },
+      enumValue: 3
+    }
+  };
+  
+  const enriched = enrichItemWithPerks(item, perkDefs, damageTypeDefs);
+  // Should be null because defaultDamageTypeHash is not set
+  assert(enriched.enrichedDamageType === null, 'Should not resolve damage type without hash');
 });
 
 test('enrichItemWithStats adds enriched stats to item', () => {

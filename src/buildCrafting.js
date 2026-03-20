@@ -320,13 +320,15 @@ function enrichItemWithPerks(item, perkDefs, damageTypeDefs) {
   }
   
   // Enrich damage types if available
+  // Use defaultDamageTypeHash (the actual hash) to look up in damageTypeDefs,
+  // not defaultDamageType which is an enum value (1=Kinetic, 2=Arc, etc.)
   let enrichedDamageType = null;
-  if (item.defaultDamageType && damageTypeDefs) {
-    const damageTypeDef = damageTypeDefs[item.defaultDamageType];
+  if (item.defaultDamageTypeHash && damageTypeDefs) {
+    const damageTypeDef = damageTypeDefs[item.defaultDamageTypeHash];
     if (damageTypeDef) {
       enrichedDamageType = {
-        hash: item.defaultDamageType,
-        name: damageTypeDef.displayProperties?.name || `Unknown_${item.defaultDamageType}`,
+        hash: item.defaultDamageTypeHash,
+        name: damageTypeDef.displayProperties?.name || `Unknown_${item.defaultDamageTypeHash}`,
         description: damageTypeDef.displayProperties?.description || '',
         enumValue: damageTypeDef.enumValue
       };

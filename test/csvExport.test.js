@@ -305,6 +305,66 @@ test('transformItemForCSV extracts subclass properties', () => {
   assert(transformed.itemCategoryHashes.includes('1403'), 'Should include category hashes');
 });
 
+test('transformItemForCSV returns enemyWeaknesses data as-is', () => {
+  const item = {
+    faction: 'FALLEN',
+    enemyType: 'Captain',
+    shieldType: 'Arc',
+    effectiveDamageType: 'Arc',
+    damageTypeEnum: 2,
+    notes: 'Arc damage is most common'
+  };
+  
+  const transformed = transformItemForCSV(item, 'enemyWeaknesses');
+  assertEqual(transformed.faction, 'FALLEN');
+  assertEqual(transformed.enemyType, 'Captain');
+  assertEqual(transformed.shieldType, 'Arc');
+  assertEqual(transformed.effectiveDamageType, 'Arc');
+  assertEqual(transformed.damageTypeEnum, 2);
+  assertEqual(transformed.notes, 'Arc damage is most common');
+  // Should NOT have generic item fields
+  assert(transformed.hash === undefined, 'Should not have hash field from generic transform');
+  assert(transformed.name === undefined, 'Should not have name field from generic transform');
+});
+
+test('transformItemForCSV includes screenshot URL when available', () => {
+  const item = {
+    hash: 123,
+    displayProperties: { name: 'Test Weapon', icon: '/icons/test.jpg' },
+    screenshot: '/screenshots/test_screenshot.jpg'
+  };
+  
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.screenshotUrl, 'https://www.bungie.net/screenshots/test_screenshot.jpg');
+  assertEqual(transformed.iconUrl, 'https://www.bungie.net/icons/test.jpg');
+});
+
+test('transformItemForCSV includes iconWatermark URLs when available', () => {
+  const item = {
+    hash: 456,
+    displayProperties: { name: 'Test Item' },
+    iconWatermark: '/watermarks/exotic.png',
+    iconWatermarkShelved: '/watermarks/exotic_shelved.png'
+  };
+  
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.iconWatermarkUrl, 'https://www.bungie.net/watermarks/exotic.png');
+  assertEqual(transformed.iconWatermarkShelvedUrl, 'https://www.bungie.net/watermarks/exotic_shelved.png');
+});
+
+test('transformItemForCSV omits asset URLs when not present', () => {
+  const item = {
+    hash: 789,
+    displayProperties: { name: 'Basic Item' }
+  };
+  
+  const transformed = transformItemForCSV(item, 'weapons');
+  assert(transformed.screenshotUrl === undefined, 'Should not have screenshotUrl when not present');
+  assert(transformed.iconWatermarkUrl === undefined, 'Should not have iconWatermarkUrl when not present');
+  assert(transformed.iconWatermarkShelvedUrl === undefined, 'Should not have iconWatermarkShelvedUrl when not present');
+  assert(transformed.iconUrl === undefined, 'Should not have iconUrl when not present');
+});
+
 console.log('\n=== Test Summary ===\n');
 console.log(`Total: ${testsRun}`);
 console.log(`Passed: ${testsPassed}`);

@@ -130,6 +130,17 @@ function transformItemForCSV(item, category, statDefs = null) {
     transformed.iconUrl = `https://www.bungie.net${item.displayProperties.icon}`;
   }
   
+  // Add additional Bungie API asset URLs when available
+  if (item.screenshot) {
+    transformed.screenshotUrl = `https://www.bungie.net${item.screenshot}`;
+  }
+  if (item.iconWatermark) {
+    transformed.iconWatermarkUrl = `https://www.bungie.net${item.iconWatermark}`;
+  }
+  if (item.iconWatermarkShelved) {
+    transformed.iconWatermarkShelvedUrl = `https://www.bungie.net${item.iconWatermarkShelved}`;
+  }
+  
   // Use enriched stats if available (with resolved stat names)
   if (item.enrichedStats) {
     for (const [statHash, enrichedStat] of Object.entries(item.enrichedStats)) {
@@ -250,6 +261,10 @@ function transformItemForCSV(item, category, statDefs = null) {
       }).join(', ');
       transformed.statBonuses = statBonuses;
     }
+  } else if (category === 'enemyWeaknesses') {
+    // Enemy weakness data is already in the correct format from exportEnemyWeaknessData()
+    // Just return the item as-is since it has its own structure (faction, enemyType, shieldType, etc.)
+    return item;
   } else if (category === 'statReference') {
     // Stat reference is already in the correct format
     // Just return the item as-is since it's already structured properly

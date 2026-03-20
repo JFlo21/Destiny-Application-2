@@ -131,7 +131,6 @@ test('isArmor2_0 returns true for armor with Armor 2.0 plug set hash', () => {
 });
 
 test('enrichItemWithPerks resolves damage type using defaultDamageTypeHash', () => {
-  const { enrichItemWithPerks } = require('../src/buildCrafting');
   const item = {
     defaultDamageType: 3,           // enum value (Solar)
     defaultDamageTypeHash: 1847026933, // actual hash for Solar
@@ -153,7 +152,6 @@ test('enrichItemWithPerks resolves damage type using defaultDamageTypeHash', () 
 });
 
 test('enrichItemWithPerks does not resolve when only defaultDamageType (enum) is present', () => {
-  const { enrichItemWithPerks } = require('../src/buildCrafting');
   const item = {
     defaultDamageType: 3,           // only enum value, no hash
     perks: []

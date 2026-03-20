@@ -148,10 +148,12 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
       const values = dataToSheetValues(transformedData);
       
       // Update sheet with data
-      // Quote sheet names in A1 notation to handle names with spaces
+      // Quote sheet names in A1 notation to handle names with spaces,
+      // and escape any single quotes within the name by doubling them
+      const escapedName = name.replace(/'/g, "''");
       await sheets.spreadsheets.values.update({
         spreadsheetId: spreadsheetId,
-        range: `'${name}'!A1`,
+        range: `'${escapedName}'!A1`,
         valueInputOption: 'RAW',
         requestBody: {
           values: values

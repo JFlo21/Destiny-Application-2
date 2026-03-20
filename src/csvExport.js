@@ -115,6 +115,12 @@ function resolveStatName(statHash, statDefs = null) {
  * @returns {object} - Transformed item data
  */
 function transformItemForCSV(item, category, statDefs = null) {
+  // Short-circuit for passthrough categories that have their own schema
+  // and don't need the generic item transform
+  if (category === 'enemyWeaknesses' || category === 'statReference' || category === 'summary') {
+    return item;
+  }
+  
   const transformed = {
     hash: item.hash,
     name: item.displayProperties?.name || '',
@@ -261,18 +267,6 @@ function transformItemForCSV(item, category, statDefs = null) {
       }).join(', ');
       transformed.statBonuses = statBonuses;
     }
-  } else if (category === 'enemyWeaknesses') {
-    // Enemy weakness data is already in the correct format from exportEnemyWeaknessData()
-    // Just return the item as-is since it has its own structure (faction, enemyType, shieldType, etc.)
-    return item;
-  } else if (category === 'statReference') {
-    // Stat reference is already in the correct format
-    // Just return the item as-is since it's already structured properly
-    return item;
-  } else if (category === 'summary') {
-    // Summary is already in the correct format (category and count)
-    // Just return the item as-is since it's already structured properly
-    return item;
   }
   
   // Add enriched perks if available (with names and descriptions)

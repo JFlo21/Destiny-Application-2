@@ -148,9 +148,10 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
       const values = dataToSheetValues(transformedData);
       
       // Update sheet with data
+      // Quote sheet names in A1 notation to handle names with spaces
       await sheets.spreadsheets.values.update({
         spreadsheetId: spreadsheetId,
-        range: `${name}!A1`,
+        range: `'${name}'!A1`,
         valueInputOption: 'RAW',
         requestBody: {
           values: values

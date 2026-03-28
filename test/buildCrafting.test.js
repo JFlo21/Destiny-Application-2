@@ -12,10 +12,12 @@ const {
   enrichItemWithStats,
   enrichItemWithPerks,
   enrichItemWithIntrinsicPerk,
+  enrichItemWithEnergyType,
   getCurrentSeasonNumber,
   filterUsableItems,
   ITEM_CATEGORIES,
-  ARMOR_2_0_PLUG_SET_HASH
+  ARMOR_2_0_PLUG_SET_HASH,
+  ARMOR_MOD_IDENTIFIERS
 } = require('../src/buildCrafting');
 const fetch = require('node-fetch');
 const AbortController = require('abort-controller');
@@ -303,6 +305,58 @@ test('filterUsableItems with allowNonEquippable=false filters out non-equippable
   const filtered = filterUsableItems(items, false);
   assertEqual(filtered.length, 1, 'Should filter out non-equippable items when allowNonEquippable=false');
   assertEqual(filtered[0].displayProperties.name, 'Equippable', 'Should keep equippable item');
+});
+
+test('enrichItemWithEnergyType resolves energy type from DestinyEnergyTypeDefinition', () => {
+  const item = {
+    energy: {
+      energyCapacity: 10,
+      energyType: 1,
+      energyTypeHash: 591714140
+    }
+  };
+  const energyTypeDefs = {
+    '591714140': {
+      displayProperties: { name: 'Arc', description: 'Arc energy type' },
+      enumValue: 1,
+      capacityStatHash: 123,
+      costStatHash: 456
+    }
+  };
+  
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assert(enriched.enrichedEnergyType !== undefined, 'Should have enrichedEnergyType');
+  assertEqual(enriched.enrichedEnergyType.name, 'Arc', 'Should resolve energy type name');
+  assertEqual(enriched.enrichedEnergyType.hash, 591714140, 'Should include energy type hash');
+  assertEqual(enriched.enrichedEnergyType.enumValue, 1, 'Should include enum value');
+});
+
+test('enrichItemWithEnergyType returns item unchanged when no energy', () => {
+  const item = { hash: 999, displayProperties: { name: 'No Energy' } };
+  const energyTypeDefs = {};
+  
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assert(enriched.enrichedEnergyType === undefined, 'Should not have enrichedEnergyType');
+});
+
+test('enrichItemWithEnergyType returns item unchanged when energy type hash not found', () => {
+  const item = {
+    energy: {
+      energyCapacity: 10,
+      energyType: 1,
+      energyTypeHash: 999999
+    }
+  };
+  const energyTypeDefs = {};
+  
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assert(enriched.enrichedEnergyType === undefined, 'Should not have enrichedEnergyType when not found');
+});
+
+test('ARMOR_MOD_IDENTIFIERS contains expected patterns', () => {
+  assert(ARMOR_MOD_IDENTIFIERS.includes('v2'), 'Should include v2');
+  assert(ARMOR_MOD_IDENTIFIERS.includes('enhancements'), 'Should include enhancements');
+  assert(ARMOR_MOD_IDENTIFIERS.includes('armor_tier'), 'Should include armor_tier');
 });
 
 // Integration Tests (require network access)

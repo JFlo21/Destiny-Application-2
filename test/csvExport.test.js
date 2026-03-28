@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName, AMMO_TYPES, WEAPON_SLOT_BUCKETS, BREAKER_TYPES, DAMAGE_TYPE_NAMES } = require('../src/csvExport');
+const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName, AMMO_TYPES, WEAPON_SLOT_BUCKETS, BREAKER_TYPES, DAMAGE_TYPE_NAMES, STAT_DESCRIPTIONS, extractElementFromPlugCategory, generateStatReference } = require('../src/csvExport');
 
 /**
  * Simple test runner
@@ -538,6 +538,105 @@ test('transformItemForCSV handles weapon with no breaker type', () => {
 
   const transformed = transformItemForCSV(item, 'weapons');
   assertEqual(transformed.breakerType, '', 'breakerType should be empty string');
+});
+
+// Tests for new functionality
+
+test('extractElementFromPlugCategory detects Prismatic element', () => {
+  const result = extractElementFromPlugCategory('v400.plugs.aspects.prismatic', '');
+  assertEqual(result, 'Prismatic', 'Should detect Prismatic from plugCategoryIdentifier');
+});
+
+test('extractElementFromPlugCategory still detects all classic elements', () => {
+  assertEqual(extractElementFromPlugCategory('v400.plugs.aspects.arc', ''), 'Arc');
+  assertEqual(extractElementFromPlugCategory('v400.plugs.aspects.solar', ''), 'Solar');
+  assertEqual(extractElementFromPlugCategory('v400.plugs.aspects.void', ''), 'Void');
+  assertEqual(extractElementFromPlugCategory('v400.plugs.aspects.stasis', ''), 'Stasis');
+  assertEqual(extractElementFromPlugCategory('v400.plugs.aspects.strand', ''), 'Strand');
+});
+
+test('transformItemForCSV includes loreHash when available', () => {
+  const item = {
+    hash: 600,
+    displayProperties: { name: 'Lore Item' },
+    loreHash: 1234567
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.loreHash, 1234567, 'Should include loreHash');
+});
+
+test('transformItemForCSV includes tooltipNotifications when available', () => {
+  const item = {
+    hash: 601,
+    displayProperties: { name: 'Tooltip Item' },
+    tooltipNotifications: [
+      { displayString: 'This item can be enhanced' },
+      { displayString: 'This item has a deepsight pattern' }
+    ]
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assert(transformed.tooltipNotifications.includes('This item can be enhanced'), 'Should include tooltip text');
+  assert(transformed.tooltipNotifications.includes('deepsight pattern'), 'Should include second tooltip');
+});
+
+test('transformItemForCSV includes enriched energy type name for armor', () => {
+  const item = {
+    hash: 700,
+    displayProperties: { name: 'Arc Armor' },
+    classType: 0,
+    energy: {
+      energyCapacity: 10,
+      energyType: 1,
+      energyTypeHash: 591714140
+    },
+    enrichedEnergyType: {
+      hash: 591714140,
+      name: 'Arc',
+      description: 'Arc energy type',
+      enumValue: 1
+    }
+  };
+
+  const transformed = transformItemForCSV(item, 'armor');
+  assertEqual(transformed.energyTypeName, 'Arc', 'Should resolve energy type name');
+  assertEqual(transformed.energyTypeDescription, 'Arc energy type', 'Should include energy type description');
+});
+
+test('transformItemForCSV includes enriched energy type name for armor mods', () => {
+  const item = {
+    hash: 701,
+    displayProperties: { name: 'Arc Mod' },
+    plug: {
+      plugCategoryIdentifier: 'enhancements.v2_arms',
+      energyCost: { energyCost: 3, energyTypeHash: 591714140 }
+    },
+    enrichedEnergyType: {
+      hash: 591714140,
+      name: 'Arc',
+      description: 'Arc energy type'
+    }
+  };
+
+  const transformed = transformItemForCSV(item, 'armorMods');
+  assertEqual(transformed.energyTypeName, 'Arc', 'Should resolve mod energy type name');
+});
+
+test('STAT_DESCRIPTIONS has updated Resilience description', () => {
+  assert(STAT_DESCRIPTIONS['Resilience'].includes('damage resistance'), 'Resilience should mention damage resistance');
+  assert(!STAT_DESCRIPTIONS['Resilience'].includes('maximum health and shield capacity'), 'Resilience should not use outdated description');
+});
+
+test('STAT_DESCRIPTIONS has updated Intellect description', () => {
+  assert(STAT_DESCRIPTIONS['Intellect'].includes('super ability cooldown'), 'Intellect should mention super cooldown');
+});
+
+test('generateStatReference uses correct category label', () => {
+  const ref = generateStatReference();
+  const armorStat = ref.find(s => s.statName === 'Mobility');
+  assert(armorStat !== undefined, 'Should include Mobility');
+  assertEqual(armorStat.category, 'Armor Stats', 'Should use updated category label');
 });
 
 console.log('\n=== Test Summary ===\n');

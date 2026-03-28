@@ -48,6 +48,53 @@ const STAT_HASHES = {
 };
 
 /**
+ * Ammo type enum to human-readable name mapping
+ * Reference: https://bungie-net.github.io/multi/schema_Destiny-DestinyAmmunitionType.html
+ */
+const AMMO_TYPES = {
+  0: 'None',
+  1: 'Primary',
+  2: 'Special',
+  3: 'Heavy'
+};
+
+/**
+ * Weapon slot bucket hashes to human-readable names
+ * These are DestinyInventoryBucketDefinition hashes for weapon slots
+ */
+const WEAPON_SLOT_BUCKETS = {
+  '1498876634': 'Kinetic',
+  '2465295065': 'Energy',
+  '953998645': 'Power'
+};
+
+/**
+ * Breaker type enum to human-readable name mapping
+ * Reference: https://bungie-net.github.io/multi/schema_Destiny-DestinyBreakerType.html
+ */
+const BREAKER_TYPES = {
+  0: 'None',
+  1: 'Shield-Piercing (Anti-Barrier)',
+  2: 'Disruption (Overload)',
+  3: 'Stagger (Unstoppable)'
+};
+
+/**
+ * Damage type enum to human-readable name mapping
+ * Reference: https://bungie-net.github.io/multi/schema_Destiny-DamageType.html
+ */
+const DAMAGE_TYPE_NAMES = {
+  0: 'None',
+  1: 'Kinetic',
+  2: 'Arc',
+  3: 'Solar',
+  4: 'Void',
+  5: 'Raid',
+  6: 'Stasis',
+  7: 'Strand'
+};
+
+/**
  * Stat descriptions explaining what each stat does in-game
  * Helps users understand the effect of stats for buildcrafting
  */
@@ -125,10 +172,13 @@ function transformItemForCSV(item, category, statDefs = null) {
     hash: item.hash,
     name: item.displayProperties?.name || '',
     description: item.displayProperties?.description || '',
+    flavorText: item.flavorText || '',
     itemType: item.itemTypeDisplayName || '',
+    itemTypeAndTierDisplayName: item.itemTypeAndTierDisplayName || '',
     itemSubType: item.itemSubType || '',
     tierType: item.inventory?.tierTypeName || '',
     tierTypeHash: item.inventory?.tierTypeHash || '',
+    collectibleHash: item.collectibleHash || '',
   };
   
   // Add icon URL if available
@@ -180,9 +230,28 @@ function transformItemForCSV(item, category, statDefs = null) {
   
   // Category-specific fields
   if (category === 'weapons') {
-    transformed.ammoType = item.equippingBlock?.ammoType || '';
-    transformed.defaultDamageType = item.defaultDamageType || '';
+    // Weapon slot (Kinetic/Energy/Power) from inventory bucket
+    const bucketHash = String(item.inventory?.bucketTypeHash || '');
+    transformed.weaponSlot = WEAPON_SLOT_BUCKETS[bucketHash] || '';
+    
+    // Ammo type resolved to name
+    const ammoTypeEnum = item.equippingBlock?.ammoType;
+    transformed.ammoType = ammoTypeEnum !== undefined ? (AMMO_TYPES[ammoTypeEnum] || String(ammoTypeEnum)) : '';
+    
+    // Damage type resolved to name from enum
+    const dmgEnum = item.defaultDamageType;
+    transformed.defaultDamageType = dmgEnum !== undefined ? (DAMAGE_TYPE_NAMES[dmgEnum] || String(dmgEnum)) : '';
     transformed.damageTypeHashes = item.damageTypeHashes?.join(', ') || '';
+    
+    // Breaker type (intrinsic Anti-Barrier/Overload/Unstoppable on exotics)
+    const breakerEnum = item.breakerType;
+    transformed.breakerType = breakerEnum ? (BREAKER_TYPES[breakerEnum] || String(breakerEnum)) : '';
+    
+    // Intrinsic perk (weapon frame/archetype) from enrichment
+    if (item.enrichedIntrinsicPerk) {
+      transformed.intrinsicPerkName = item.enrichedIntrinsicPerk.name || '';
+      transformed.intrinsicPerkDescription = item.enrichedIntrinsicPerk.description || '';
+    }
   } else if (category === 'armor') {
     // Map class type to readable name
     const classTypes = { 0: 'Titan', 1: 'Hunter', 2: 'Warlock' };
@@ -226,11 +295,25 @@ function transformItemForCSV(item, category, statDefs = null) {
     const classTypes = { 0: 'Titan', 1: 'Hunter', 2: 'Warlock' };
     transformed.classType = item.classType !== undefined ? 
       (classTypes[item.classType] || 'Any') : '';
-    transformed.damageType = item.defaultDamageType || item.talentGrid?.hudDamageType || '';
+    const subDmgEnum = item.defaultDamageType || item.talentGrid?.hudDamageType || '';
+    transformed.damageType = subDmgEnum;
+    transformed.damageTypeName = subDmgEnum !== '' ? (DAMAGE_TYPE_NAMES[subDmgEnum] || String(subDmgEnum)) : '';
     transformed.itemCategoryHashes = item.itemCategoryHashes?.join(', ') || '';
   } else if (category === 'aspects' || category === 'fragments') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
-    transformed.damageType = item.talentGrid?.hudDamageType || '';
+    const afDmgEnum = item.talentGrid?.hudDamageType || '';
+    transformed.damageType = afDmgEnum;
+    transformed.damageTypeName = afDmgEnum !== '' ? (DAMAGE_TYPE_NAMES[afDmgEnum] || String(afDmgEnum)) : '';
+    
+    // Try to extract element name from plugCategoryIdentifier (e.g., 'v400.plugs.aspects.solar')
+    const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
+    const elementKeywords = ['arc', 'solar', 'void', 'stasis', 'strand'];
+    const matchedElement = elementKeywords.find(el => plugCat.includes(el));
+    if (matchedElement) {
+      transformed.element = matchedElement.charAt(0).toUpperCase() + matchedElement.slice(1);
+    } else if (transformed.damageTypeName) {
+      transformed.element = transformed.damageTypeName;
+    }
     
     // Add investment stats for fragments (stat bonuses/penalties they provide)
     if (item.investmentStats && item.investmentStats.length > 0) {
@@ -242,9 +325,21 @@ function transformItemForCSV(item, category, statDefs = null) {
     }
   } else if (category === 'abilities') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
-    transformed.damageType = item.talentGrid?.hudDamageType || '';
+    const abilDmgEnum = item.talentGrid?.hudDamageType || '';
+    transformed.damageType = abilDmgEnum;
+    transformed.damageTypeName = abilDmgEnum !== '' ? (DAMAGE_TYPE_NAMES[abilDmgEnum] || String(abilDmgEnum)) : '';
     
-    // Note: investmentStats are already processed above in the general stats handling (lines 119-127)
+    // Extract element from plugCategoryIdentifier
+    const abilPlugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
+    const abilElementKeywords = ['arc', 'solar', 'void', 'stasis', 'strand'];
+    const abilMatchedElement = abilElementKeywords.find(el => abilPlugCat.includes(el));
+    if (abilMatchedElement) {
+      transformed.element = abilMatchedElement.charAt(0).toUpperCase() + abilMatchedElement.slice(1);
+    } else if (transformed.damageTypeName) {
+      transformed.element = transformed.damageTypeName;
+    }
+    
+    // Note: investmentStats are already processed above in the general stats handling
     // This creates individual columns for each stat rather than concatenating them
   } else if (category === 'damageTypes') {
     // Special handling for damage types
@@ -291,7 +386,14 @@ function transformItemForCSV(item, category, statDefs = null) {
   }
   
   // Add intrinsic perk information (first socket typically contains intrinsic trait)
-  if (item.sockets?.socketEntries && item.sockets.socketEntries.length > 0) {
+  if (item.enrichedIntrinsicPerk) {
+    // Use enriched data if available (resolved name and description)
+    transformed.intrinsicPerkHash = item.enrichedIntrinsicPerk.hash || '';
+    if (!transformed.intrinsicPerkName) {
+      transformed.intrinsicPerkName = item.enrichedIntrinsicPerk.name || '';
+      transformed.intrinsicPerkDescription = item.enrichedIntrinsicPerk.description || '';
+    }
+  } else if (item.sockets?.socketEntries && item.sockets.socketEntries.length > 0) {
     const intrinsicSocket = item.sockets.socketEntries[0];
     if (intrinsicSocket?.singleInitialItemHash) {
       transformed.intrinsicPerkHash = intrinsicSocket.singleInitialItemHash;
@@ -445,5 +547,9 @@ module.exports = {
   generateStatReference,
   generateSummaryData,
   STAT_HASHES,
-  STAT_DESCRIPTIONS
+  STAT_DESCRIPTIONS,
+  AMMO_TYPES,
+  WEAPON_SLOT_BUCKETS,
+  BREAKER_TYPES,
+  DAMAGE_TYPE_NAMES
 };

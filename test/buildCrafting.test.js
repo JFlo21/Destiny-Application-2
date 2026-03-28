@@ -11,6 +11,7 @@ const {
   isArmor2_0,
   enrichItemWithStats,
   enrichItemWithPerks,
+  enrichItemWithIntrinsicPerk,
   getCurrentSeasonNumber,
   filterUsableItems,
   ITEM_CATEGORIES,
@@ -191,6 +192,49 @@ test('enrichItemWithStats adds enriched stats to item', () => {
   assert(enriched.enrichedStats['2996146975'], 'Should have stat hash key');
   assertEqual(enriched.enrichedStats['2996146975'].name, 'Mobility', 'Stat name should be Mobility');
   assertEqual(enriched.enrichedStats['2996146975'].value, 10, 'Stat value should be 10');
+});
+
+test('enrichItemWithIntrinsicPerk resolves intrinsic perk from item definitions', () => {
+  const item = {
+    sockets: {
+      socketEntries: [
+        { singleInitialItemHash: 12345, socketTypeHash: 111 }
+      ]
+    }
+  };
+  const itemDefs = {
+    '12345': {
+      displayProperties: { name: 'Aggressive Frame', description: 'High damage, slow firing auto rifle.' }
+    }
+  };
+  
+  const enriched = enrichItemWithIntrinsicPerk(item, itemDefs);
+  assert(enriched.enrichedIntrinsicPerk !== undefined, 'Should have enrichedIntrinsicPerk');
+  assertEqual(enriched.enrichedIntrinsicPerk.name, 'Aggressive Frame', 'Should resolve intrinsic perk name');
+  assertEqual(enriched.enrichedIntrinsicPerk.hash, 12345, 'Should include intrinsic perk hash');
+  assert(enriched.enrichedIntrinsicPerk.description.includes('High damage'), 'Should include description');
+});
+
+test('enrichItemWithIntrinsicPerk returns item unchanged when no sockets', () => {
+  const item = { hash: 999, displayProperties: { name: 'No Sockets' } };
+  const itemDefs = {};
+  
+  const enriched = enrichItemWithIntrinsicPerk(item, itemDefs);
+  assert(enriched.enrichedIntrinsicPerk === undefined, 'Should not have enrichedIntrinsicPerk');
+});
+
+test('enrichItemWithIntrinsicPerk returns item unchanged when intrinsic not found in defs', () => {
+  const item = {
+    sockets: {
+      socketEntries: [
+        { singleInitialItemHash: 99999, socketTypeHash: 111 }
+      ]
+    }
+  };
+  const itemDefs = {};
+  
+  const enriched = enrichItemWithIntrinsicPerk(item, itemDefs);
+  assert(enriched.enrichedIntrinsicPerk === undefined, 'Should not have enrichedIntrinsicPerk when not found');
 });
 
 test('filterUsableItems filters out redacted items', () => {

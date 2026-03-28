@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName } = require('../src/csvExport');
+const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName, AMMO_TYPES, WEAPON_SLOT_BUCKETS, BREAKER_TYPES, DAMAGE_TYPE_NAMES } = require('../src/csvExport');
 
 /**
  * Simple test runner
@@ -363,6 +363,181 @@ test('transformItemForCSV omits asset URLs when not present', () => {
   assert(transformed.iconWatermarkUrl === undefined, 'Should not have iconWatermarkUrl when not present');
   assert(transformed.iconWatermarkShelvedUrl === undefined, 'Should not have iconWatermarkShelvedUrl when not present');
   assert(transformed.iconUrl === undefined, 'Should not have iconUrl when not present');
+});
+
+// New field tests
+
+test('AMMO_TYPES maps enum values correctly', () => {
+  assertEqual(AMMO_TYPES[1], 'Primary', 'Ammo type 1 should be Primary');
+  assertEqual(AMMO_TYPES[2], 'Special', 'Ammo type 2 should be Special');
+  assertEqual(AMMO_TYPES[3], 'Heavy', 'Ammo type 3 should be Heavy');
+});
+
+test('WEAPON_SLOT_BUCKETS maps bucket hashes correctly', () => {
+  assertEqual(WEAPON_SLOT_BUCKETS['1498876634'], 'Kinetic', 'Should map kinetic slot');
+  assertEqual(WEAPON_SLOT_BUCKETS['2465295065'], 'Energy', 'Should map energy slot');
+  assertEqual(WEAPON_SLOT_BUCKETS['953998645'], 'Power', 'Should map power slot');
+});
+
+test('BREAKER_TYPES maps enum values correctly', () => {
+  assertEqual(BREAKER_TYPES[1], 'Shield-Piercing (Anti-Barrier)', 'Breaker type 1 should be Anti-Barrier');
+  assertEqual(BREAKER_TYPES[2], 'Disruption (Overload)', 'Breaker type 2 should be Overload');
+  assertEqual(BREAKER_TYPES[3], 'Stagger (Unstoppable)', 'Breaker type 3 should be Unstoppable');
+});
+
+test('DAMAGE_TYPE_NAMES maps enum values correctly', () => {
+  assertEqual(DAMAGE_TYPE_NAMES[1], 'Kinetic', 'Damage type 1 should be Kinetic');
+  assertEqual(DAMAGE_TYPE_NAMES[2], 'Arc', 'Damage type 2 should be Arc');
+  assertEqual(DAMAGE_TYPE_NAMES[3], 'Solar', 'Damage type 3 should be Solar');
+  assertEqual(DAMAGE_TYPE_NAMES[4], 'Void', 'Damage type 4 should be Void');
+  assertEqual(DAMAGE_TYPE_NAMES[6], 'Stasis', 'Damage type 6 should be Stasis');
+  assertEqual(DAMAGE_TYPE_NAMES[7], 'Strand', 'Damage type 7 should be Strand');
+});
+
+test('transformItemForCSV includes flavorText and collectibleHash', () => {
+  const item = {
+    hash: 100,
+    displayProperties: { name: 'Exotic Gun' },
+    flavorText: 'A legendary weapon of old.',
+    collectibleHash: 9876543
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.flavorText, 'A legendary weapon of old.');
+  assertEqual(transformed.collectibleHash, 9876543);
+});
+
+test('transformItemForCSV includes itemTypeAndTierDisplayName', () => {
+  const item = {
+    hash: 101,
+    displayProperties: { name: 'Exotic Pulse Rifle' },
+    itemTypeAndTierDisplayName: 'Exotic Pulse Rifle'
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.itemTypeAndTierDisplayName, 'Exotic Pulse Rifle');
+});
+
+test('transformItemForCSV resolves weapon ammo type to name', () => {
+  const item = {
+    hash: 200,
+    displayProperties: { name: 'Heavy Weapon' },
+    equippingBlock: { ammoType: 3 }
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.ammoType, 'Heavy', 'ammoType should be resolved to Heavy');
+});
+
+test('transformItemForCSV resolves weapon slot from bucket hash', () => {
+  const item = {
+    hash: 201,
+    displayProperties: { name: 'Energy Weapon' },
+    inventory: { bucketTypeHash: 2465295065, tierTypeName: 'Legendary' }
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.weaponSlot, 'Energy', 'weaponSlot should be Energy');
+});
+
+test('transformItemForCSV resolves weapon default damage type to name', () => {
+  const item = {
+    hash: 202,
+    displayProperties: { name: 'Arc Weapon' },
+    defaultDamageType: 2,
+    equippingBlock: {}
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.defaultDamageType, 'Arc', 'defaultDamageType should be Arc');
+});
+
+test('transformItemForCSV includes breaker type for exotic weapons', () => {
+  const item = {
+    hash: 203,
+    displayProperties: { name: 'Anti-Barrier Exotic' },
+    breakerType: 1
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.breakerType, 'Shield-Piercing (Anti-Barrier)', 'breakerType should resolve');
+});
+
+test('transformItemForCSV includes enrichedIntrinsicPerk for weapons', () => {
+  const item = {
+    hash: 204,
+    displayProperties: { name: 'Test Weapon' },
+    enrichedIntrinsicPerk: {
+      hash: 999,
+      name: 'Aggressive Frame',
+      description: 'High damage, slow firing.'
+    }
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.intrinsicPerkName, 'Aggressive Frame');
+  assertEqual(transformed.intrinsicPerkDescription, 'High damage, slow firing.');
+  assertEqual(transformed.intrinsicPerkHash, 999);
+});
+
+test('transformItemForCSV resolves subclass damageTypeName', () => {
+  const item = {
+    hash: 300,
+    displayProperties: { name: 'Gunslinger', description: 'Solar subclass' },
+    classType: 1,
+    defaultDamageType: 3,
+    itemCategoryHashes: [1403]
+  };
+
+  const transformed = transformItemForCSV(item, 'subclasses');
+  assertEqual(transformed.damageTypeName, 'Solar', 'Subclass damageTypeName should be Solar');
+});
+
+test('transformItemForCSV resolves aspect element from plugCategoryIdentifier', () => {
+  const item = {
+    hash: 400,
+    displayProperties: { name: 'Solar Aspect' },
+    plug: { plugCategoryIdentifier: 'v400.plugs.aspects.solar' },
+    talentGrid: { hudDamageType: 3 }
+  };
+
+  const transformed = transformItemForCSV(item, 'aspects');
+  assertEqual(transformed.element, 'Solar', 'Aspect element should be Solar');
+  assertEqual(transformed.damageTypeName, 'Solar', 'Aspect damageTypeName should be Solar');
+});
+
+test('transformItemForCSV resolves fragment element from plugCategoryIdentifier', () => {
+  const item = {
+    hash: 401,
+    displayProperties: { name: 'Void Fragment' },
+    plug: { plugCategoryIdentifier: 'v400.plugs.fragments.void' }
+  };
+
+  const transformed = transformItemForCSV(item, 'fragments');
+  assertEqual(transformed.element, 'Void', 'Fragment element should be Void');
+});
+
+test('transformItemForCSV resolves ability element from plugCategoryIdentifier', () => {
+  const item = {
+    hash: 500,
+    displayProperties: { name: 'Arc Grenade' },
+    plug: { plugCategoryIdentifier: 'v400.plugs.grenades.arc' },
+    talentGrid: { hudDamageType: 2 }
+  };
+
+  const transformed = transformItemForCSV(item, 'abilities');
+  assertEqual(transformed.element, 'Arc', 'Ability element should be Arc');
+  assertEqual(transformed.damageTypeName, 'Arc');
+});
+
+test('transformItemForCSV handles weapon with no breaker type', () => {
+  const item = {
+    hash: 205,
+    displayProperties: { name: 'Normal Weapon' }
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.breakerType, '', 'breakerType should be empty string');
 });
 
 console.log('\n=== Test Summary ===\n');

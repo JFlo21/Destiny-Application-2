@@ -378,6 +378,31 @@ test('enrichItemWithEnergyType resolves energy type for armor mods via plug.ener
   assertEqual(enriched.enrichedEnergyType.name, 'Arc', 'Should resolve energy type name for mods');
   assertEqual(enriched.enrichedEnergyType.hash, 591714140, 'Should include energy type hash for mods');
   assertEqual(enriched.enrichedEnergyType.enumValue, 1, 'Should include enum value for mods');
+});
+test('enrichItemWithEnergyType resolves energy type for armor mods via plug.energyCost.energyTypeHash', () => {
+  const item = {
+    plug: {
+      energyCost: {
+        energyType: 1,
+        energyTypeHash: 591714140,
+        energyCost: 3
+      }
+    }
+  };
+  const energyTypeDefs = {
+    '591714140': {
+      displayProperties: { name: 'Arc', description: 'Arc energy type' },
+      enumValue: 1,
+      capacityStatHash: 123,
+      costStatHash: 456
+    }
+  };
+
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assert(enriched.enrichedEnergyType !== undefined, 'Should have enrichedEnergyType for mods');
+  assertEqual(enriched.enrichedEnergyType.name, 'Arc', 'Should resolve energy type name for mods');
+  assertEqual(enriched.enrichedEnergyType.hash, 591714140, 'Should include energy type hash for mods');
+  assertEqual(enriched.enrichedEnergyType.enumValue, 1, 'Should include enum value for mods');
   assertEqual(enriched.enrichedEnergyType.source, 'modEnergyCost', 'Should indicate mod energy cost source');
 });
 

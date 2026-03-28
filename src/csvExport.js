@@ -343,7 +343,8 @@ function transformItemForCSV(item, category, statDefs = null) {
   } else if (category === 'armorMods') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     transformed.energyCost = item.plug?.energyCost?.energyCost || 0;
-    transformed.energyType = item.plug?.energyCost?.energyTypeHash || '';
+    transformed.energyTypeHash = item.plug?.energyCost?.energyTypeHash || '';
+    transformed.energyTypeEnum = item.plug?.energyCost?.energyType ?? '';
     
     // Resolve energy type name from enrichment (DestinyEnergyTypeDefinition)
     // Post-Lightfall: mods no longer require matching energy type, but the cost type is still tracked
@@ -411,7 +412,8 @@ function transformItemForCSV(item, category, statDefs = null) {
     // Special handling for artifact and champion mods
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     transformed.energyCost = item.plug?.energyCost?.energyCost || 0;
-    transformed.energyType = item.plug?.energyCost?.energyTypeHash || '';
+    transformed.energyTypeHash = item.plug?.energyCost?.energyTypeHash || '';
+    transformed.energyTypeEnum = item.plug?.energyCost?.energyType ?? '';
     
     // Resolve energy type name (from enrichment or enum fallback)
     if (item.enrichedEnergyType) {

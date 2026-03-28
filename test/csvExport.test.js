@@ -610,7 +610,7 @@ test('transformItemForCSV includes enriched energy type name for armor mods', ()
     displayProperties: { name: 'Arc Mod' },
     plug: {
       plugCategoryIdentifier: 'enhancements.v2_arms',
-      energyCost: { energyCost: 3, energyTypeHash: 591714140 }
+      energyCost: { energyCost: 3, energyTypeHash: 591714140, energyType: 1 }
     },
     enrichedEnergyType: {
       hash: 591714140,
@@ -621,6 +621,8 @@ test('transformItemForCSV includes enriched energy type name for armor mods', ()
 
   const transformed = transformItemForCSV(item, 'armorMods');
   assertEqual(transformed.energyTypeName, 'Arc', 'Should resolve mod energy type name');
+  assertEqual(transformed.energyTypeHash, 591714140, 'Should export energyTypeHash for mods');
+  assertEqual(transformed.energyTypeEnum, 1, 'Should export energyTypeEnum for mods');
 });
 
 test('STAT_DESCRIPTIONS has updated Resilience description', () => {

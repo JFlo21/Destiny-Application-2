@@ -344,6 +344,32 @@ function enrichItemWithPerks(item, perkDefs, damageTypeDefs) {
 }
 
 /**
+ * Enrich item with resolved intrinsic perk information
+ * The intrinsic perk (first socket) defines the weapon's frame/archetype
+ * @param {object} item - Item to enrich
+ * @param {object} itemDefs - DestinyInventoryItemDefinition lookup table
+ * @returns {object} - Item with enrichedIntrinsicPerk
+ */
+function enrichItemWithIntrinsicPerk(item, itemDefs) {
+  if (!item.sockets?.socketEntries?.length) return item;
+  
+  const intrinsicSocket = item.sockets.socketEntries[0];
+  if (!intrinsicSocket?.singleInitialItemHash) return item;
+  
+  const intrinsicItem = itemDefs[intrinsicSocket.singleInitialItemHash];
+  if (!intrinsicItem) return item;
+  
+  return {
+    ...item,
+    enrichedIntrinsicPerk: {
+      hash: intrinsicSocket.singleInitialItemHash,
+      name: intrinsicItem.displayProperties?.name || '',
+      description: intrinsicItem.displayProperties?.description || ''
+    }
+  };
+}
+
+/**
  * Enrich items with stat definitions
  * @param {object[]} items - Items to enrich
  * @param {object} client - Bungie API client
@@ -355,7 +381,7 @@ async function enrichItemsWithStatNames(items, client) {
 }
 
 /**
- * Enrich items with comprehensive data (stats, perks, damage types)
+ * Enrich items with comprehensive data (stats, perks, damage types, intrinsic perks)
  * @param {object[]} items - Items to enrich
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Fully enriched items
@@ -365,10 +391,12 @@ async function enrichItems(items, client) {
   const statDefs = await loadStatDefinitions(client);
   const perkDefs = await loadPerkDefinitions(client);
   const damageTypeDefs = await loadDamageTypeDefinitions(client);
+  const itemDefs = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   
   return items.map(item => {
     let enriched = enrichItemWithStats(item, statDefs);
     enriched = enrichItemWithPerks(enriched, perkDefs, damageTypeDefs);
+    enriched = enrichItemWithIntrinsicPerk(enriched, itemDefs);
     return enriched;
   });
 }
@@ -794,6 +822,7 @@ module.exports = {
   filterUsableItems,
   enrichItemWithStats,
   enrichItemWithPerks,
+  enrichItemWithIntrinsicPerk,
   enrichItemsWithStatNames,
   enrichItems,
   isArmor2_0,

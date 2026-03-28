@@ -153,7 +153,7 @@ async function loadSeasonDefinitions(client) {
 
 /**
  * Loads energy type definitions for resolving armor energy types
- * Post-Lightfall, energy types (Arc, Solar, Void, Stasis, Strand) still exist on armor
+ * Post-Lightfall, energy types (Arc, Solar, Void, Stasis, Any) still exist on armor
  * but no longer restrict which mods can be slotted.
  * @param {object} client - Bungie API client
  * @returns {Promise<object>} - Energy type definitions (DestinyEnergyTypeDefinition)

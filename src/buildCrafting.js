@@ -440,14 +440,15 @@ function enrichItemWithEnergyType(item, energyTypeDefs) {
   if (!energyTypeDefs) return item;
   
   // Resolve energy type hash from either armor energy block or plug energy cost
-  const energyTypeHash = item.energy?.energyTypeHash || item.plug?.energyCost?.energyTypeHash;
-  if (!energyTypeHash) return item;
+  // Use nullish coalescing (??) to correctly handle energyTypeHash value of 0
+  const energyTypeHash = item.energy?.energyTypeHash ?? item.plug?.energyCost?.energyTypeHash;
+  if (energyTypeHash == null) return item;
   
   const energyTypeDef = energyTypeDefs[energyTypeHash];
   if (!energyTypeDef) return item;
   
   // Track which source the energy type came from for clarity
-  const source = item.energy?.energyTypeHash ? 'armorEnergy' : 'modEnergyCost';
+  const source = (item.energy?.energyTypeHash != null) ? 'armorEnergy' : 'modEnergyCost';
   
   return {
     ...item,

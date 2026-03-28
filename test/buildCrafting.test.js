@@ -443,6 +443,14 @@ test('enrichItemWithLore returns item unchanged when no loreHash', () => {
   assert(enriched.enrichedLore === undefined, 'Should not have enrichedLore');
 });
 
+test('enrichItemWithLore returns item unchanged when loreHash not found in defs', () => {
+  const item = { hash: 999, displayProperties: { name: 'Missing Lore' }, loreHash: 999999 };
+  const loreDefs = {};
+  
+  const enriched = enrichItemWithLore(item, loreDefs);
+  assert(enriched.enrichedLore === undefined, 'Should not have enrichedLore when hash not found');
+});
+
 test('ARMOR_MOD_IDENTIFIERS contains expected patterns', () => {
   assert(ARMOR_MOD_IDENTIFIERS.includes('v2'), 'Should include v2');
   assert(ARMOR_MOD_IDENTIFIERS.includes('enhancements'), 'Should include enhancements');

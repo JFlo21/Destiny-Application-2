@@ -651,6 +651,8 @@ test('ENERGY_TYPE_NAMES maps all enum values per Bungie API spec', () => {
   assertEqual(ENERGY_TYPE_NAMES[1], 'Arc', 'Energy type 1 should be Arc');
   assertEqual(ENERGY_TYPE_NAMES[2], 'Solar', 'Energy type 2 should be Solar');
   assertEqual(ENERGY_TYPE_NAMES[3], 'Void', 'Energy type 3 should be Void');
+  assertEqual(ENERGY_TYPE_NAMES[4], 'Ghost', 'Energy type 4 should be Ghost');
+  assertEqual(ENERGY_TYPE_NAMES[5], 'Subclass', 'Energy type 5 should be Subclass');
   assertEqual(ENERGY_TYPE_NAMES[6], 'Stasis', 'Energy type 6 should be Stasis');
 });
 

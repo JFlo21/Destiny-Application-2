@@ -155,6 +155,33 @@ function resolveStatName(statHash, statDefs = null) {
 }
 
 /**
+ * Resolve an enum value to a human-readable name using a mapping
+ * @param {*} enumValue - The enum value to resolve
+ * @param {object} mapping - Enum-to-name mapping object
+ * @returns {string} - Resolved name, stringified value, or empty string
+ */
+function resolveEnum(enumValue, mapping) {
+  if (enumValue === undefined || enumValue === null || enumValue === '') return '';
+  return mapping[enumValue] || String(enumValue);
+}
+
+/**
+ * Extract element name from a plugCategoryIdentifier string
+ * @param {string} plugCategoryIdentifier - The plug category identifier (e.g., 'v400.plugs.aspects.solar')
+ * @param {string} fallbackDamageTypeName - Fallback from resolved damage type name
+ * @returns {string} - Element name (e.g., 'Solar') or empty string
+ */
+function extractElementFromPlugCategory(plugCategoryIdentifier, fallbackDamageTypeName) {
+  const plugCat = (plugCategoryIdentifier || '').toLowerCase();
+  const elementKeywords = ['arc', 'solar', 'void', 'stasis', 'strand'];
+  const matched = elementKeywords.find(el => plugCat.includes(el));
+  if (matched) {
+    return matched.charAt(0).toUpperCase() + matched.slice(1);
+  }
+  return fallbackDamageTypeName || '';
+}
+
+/**
  * Transform item data to a more readable format for CSV
  * @param {object} item - Item data from Bungie API
  * @param {string} category - Category of item (weapons, armor, etc.)
@@ -235,17 +262,14 @@ function transformItemForCSV(item, category, statDefs = null) {
     transformed.weaponSlot = WEAPON_SLOT_BUCKETS[bucketHash] || '';
     
     // Ammo type resolved to name
-    const ammoTypeEnum = item.equippingBlock?.ammoType;
-    transformed.ammoType = ammoTypeEnum !== undefined ? (AMMO_TYPES[ammoTypeEnum] || String(ammoTypeEnum)) : '';
+    transformed.ammoType = resolveEnum(item.equippingBlock?.ammoType, AMMO_TYPES);
     
     // Damage type resolved to name from enum
-    const dmgEnum = item.defaultDamageType;
-    transformed.defaultDamageType = dmgEnum !== undefined ? (DAMAGE_TYPE_NAMES[dmgEnum] || String(dmgEnum)) : '';
+    transformed.defaultDamageType = resolveEnum(item.defaultDamageType, DAMAGE_TYPE_NAMES);
     transformed.damageTypeHashes = item.damageTypeHashes?.join(', ') || '';
     
     // Breaker type (intrinsic Anti-Barrier/Overload/Unstoppable on exotics)
-    const breakerEnum = item.breakerType;
-    transformed.breakerType = breakerEnum ? (BREAKER_TYPES[breakerEnum] || String(breakerEnum)) : '';
+    transformed.breakerType = resolveEnum(item.breakerType, BREAKER_TYPES);
     
     // Intrinsic perk (weapon frame/archetype) from enrichment
     if (item.enrichedIntrinsicPerk) {
@@ -297,23 +321,16 @@ function transformItemForCSV(item, category, statDefs = null) {
       (classTypes[item.classType] || 'Any') : '';
     const subDmgEnum = item.defaultDamageType || item.talentGrid?.hudDamageType || '';
     transformed.damageType = subDmgEnum;
-    transformed.damageTypeName = subDmgEnum !== '' ? (DAMAGE_TYPE_NAMES[subDmgEnum] || String(subDmgEnum)) : '';
+    transformed.damageTypeName = resolveEnum(subDmgEnum, DAMAGE_TYPE_NAMES);
     transformed.itemCategoryHashes = item.itemCategoryHashes?.join(', ') || '';
   } else if (category === 'aspects' || category === 'fragments') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     const afDmgEnum = item.talentGrid?.hudDamageType || '';
     transformed.damageType = afDmgEnum;
-    transformed.damageTypeName = afDmgEnum !== '' ? (DAMAGE_TYPE_NAMES[afDmgEnum] || String(afDmgEnum)) : '';
-    
-    // Try to extract element name from plugCategoryIdentifier (e.g., 'v400.plugs.aspects.solar')
-    const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
-    const elementKeywords = ['arc', 'solar', 'void', 'stasis', 'strand'];
-    const matchedElement = elementKeywords.find(el => plugCat.includes(el));
-    if (matchedElement) {
-      transformed.element = matchedElement.charAt(0).toUpperCase() + matchedElement.slice(1);
-    } else if (transformed.damageTypeName) {
-      transformed.element = transformed.damageTypeName;
-    }
+    transformed.damageTypeName = resolveEnum(afDmgEnum, DAMAGE_TYPE_NAMES);
+    transformed.element = extractElementFromPlugCategory(
+      item.plug?.plugCategoryIdentifier, transformed.damageTypeName
+    );
     
     // Add investment stats for fragments (stat bonuses/penalties they provide)
     if (item.investmentStats && item.investmentStats.length > 0) {
@@ -327,17 +344,10 @@ function transformItemForCSV(item, category, statDefs = null) {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     const abilDmgEnum = item.talentGrid?.hudDamageType || '';
     transformed.damageType = abilDmgEnum;
-    transformed.damageTypeName = abilDmgEnum !== '' ? (DAMAGE_TYPE_NAMES[abilDmgEnum] || String(abilDmgEnum)) : '';
-    
-    // Extract element from plugCategoryIdentifier
-    const abilPlugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
-    const abilElementKeywords = ['arc', 'solar', 'void', 'stasis', 'strand'];
-    const abilMatchedElement = abilElementKeywords.find(el => abilPlugCat.includes(el));
-    if (abilMatchedElement) {
-      transformed.element = abilMatchedElement.charAt(0).toUpperCase() + abilMatchedElement.slice(1);
-    } else if (transformed.damageTypeName) {
-      transformed.element = transformed.damageTypeName;
-    }
+    transformed.damageTypeName = resolveEnum(abilDmgEnum, DAMAGE_TYPE_NAMES);
+    transformed.element = extractElementFromPlugCategory(
+      item.plug?.plugCategoryIdentifier, transformed.damageTypeName
+    );
     
     // Note: investmentStats are already processed above in the general stats handling
     // This creates individual columns for each stat rather than concatenating them
@@ -544,6 +554,8 @@ module.exports = {
   transformItemForCSV,
   transformItemsForCSV,
   resolveStatName,
+  resolveEnum,
+  extractElementFromPlugCategory,
   generateStatReference,
   generateSummaryData,
   STAT_HASHES,

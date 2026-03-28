@@ -103,10 +103,10 @@ const DAMAGE_TYPE_NAMES = {
 const STAT_DESCRIPTIONS = {
   // Armor stats (current universal mod system, post-Lightfall)
   'Mobility': 'Increases movement speed, walk speed, strafe speed, and initial jump height. Reduces dodge cooldown for Hunters.',
-  'Resilience': 'Increases damage resistance, reducing all incoming PvE damage at higher tiers. Reduces barricade cooldown for Titans. Critical stat for endgame survivability.',
+  'Resilience': 'Increases damage resistance in PvE, reducing all incoming damage at higher tiers. Provides increased shield capacity in PvP. Reduces barricade cooldown for Titans. Critical stat for endgame survivability.',
   'Recovery': 'Increases the speed at which health and shields regenerate. Reduces rift cooldown for Warlocks.',
   'Discipline': 'Reduces grenade ability cooldown time.',
-  'Intellect': 'Reduces super ability cooldown time. Less impactful than other stats due to passive super gain changes.',
+  'Intellect': 'Reduces super ability cooldown time. Has reduced effectiveness compared to pre-Lightfall due to passive super gain changes.',
   'Strength': 'Reduces melee ability cooldown time.',
   
   // Weapon stats

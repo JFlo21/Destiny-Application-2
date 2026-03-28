@@ -625,6 +625,7 @@ test('transformItemForCSV includes enriched energy type name for armor mods', ()
 
 test('STAT_DESCRIPTIONS has updated Resilience description', () => {
   assert(STAT_DESCRIPTIONS['Resilience'].includes('damage resistance'), 'Resilience should mention damage resistance');
+  assert(STAT_DESCRIPTIONS['Resilience'].includes('PvE'), 'Resilience should mention PvE context');
   assert(!STAT_DESCRIPTIONS['Resilience'].includes('maximum health and shield capacity'), 'Resilience should not use outdated description');
 });
 

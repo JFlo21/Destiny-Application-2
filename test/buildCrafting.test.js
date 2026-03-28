@@ -13,6 +13,7 @@ const {
   enrichItemWithPerks,
   enrichItemWithIntrinsicPerk,
   enrichItemWithEnergyType,
+  enrichItemWithLore,
   getCurrentSeasonNumber,
   filterUsableItems,
   ITEM_CATEGORIES,
@@ -351,6 +352,95 @@ test('enrichItemWithEnergyType returns item unchanged when energy type hash not 
   
   const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
   assert(enriched.enrichedEnergyType === undefined, 'Should not have enrichedEnergyType when not found');
+});
+
+test('enrichItemWithEnergyType resolves energy type for armor mods via plug.energyCost.energyTypeHash', () => {
+  const item = {
+    plug: {
+      energyCost: {
+        energyType: 1,
+        energyTypeHash: 591714140,
+        energyCost: 3
+      }
+    }
+  };
+  const energyTypeDefs = {
+    '591714140': {
+      displayProperties: { name: 'Arc', description: 'Arc energy type' },
+      enumValue: 1,
+      capacityStatHash: 123,
+      costStatHash: 456
+    }
+  };
+
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assert(enriched.enrichedEnergyType !== undefined, 'Should have enrichedEnergyType for mods');
+  assertEqual(enriched.enrichedEnergyType.name, 'Arc', 'Should resolve energy type name for mods');
+  assertEqual(enriched.enrichedEnergyType.hash, 591714140, 'Should include energy type hash for mods');
+  assertEqual(enriched.enrichedEnergyType.enumValue, 1, 'Should include enum value for mods');
+  assertEqual(enriched.enrichedEnergyType.source, 'modEnergyCost', 'Should indicate mod energy cost source');
+});
+
+test('enrichItemWithEnergyType prefers armor energy path over mod path', () => {
+  const item = {
+    energy: {
+      energyCapacity: 10,
+      energyType: 1,
+      energyTypeHash: 591714140
+    },
+    plug: {
+      energyCost: {
+        energyType: 3,
+        energyTypeHash: 999888,
+        energyCost: 5
+      }
+    }
+  };
+  const energyTypeDefs = {
+    '591714140': {
+      displayProperties: { name: 'Arc', description: 'Arc energy type' },
+      enumValue: 1
+    },
+    '999888': {
+      displayProperties: { name: 'Void', description: 'Void energy type' },
+      enumValue: 3
+    }
+  };
+
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assertEqual(enriched.enrichedEnergyType.name, 'Arc', 'Should prefer armor energy path');
+  assertEqual(enriched.enrichedEnergyType.source, 'armorEnergy', 'Should indicate armor energy source');
+});
+
+test('enrichItemWithLore resolves lore text from DestinyLoreDefinition', () => {
+  const item = {
+    hash: 123,
+    displayProperties: { name: 'Test Item' },
+    loreHash: 456789
+  };
+  const loreDefs = {
+    '456789': {
+      displayProperties: {
+        name: 'The Story',
+        description: 'A long time ago in a galaxy far away...'
+      },
+      subtitle: 'Chapter 1'
+    }
+  };
+
+  const enriched = enrichItemWithLore(item, loreDefs);
+  assert(enriched.enrichedLore !== undefined, 'Should have enrichedLore');
+  assertEqual(enriched.enrichedLore.name, 'The Story', 'Should resolve lore name');
+  assertEqual(enriched.enrichedLore.description, 'A long time ago in a galaxy far away...', 'Should resolve lore description');
+  assertEqual(enriched.enrichedLore.subtitle, 'Chapter 1', 'Should resolve lore subtitle');
+});
+
+test('enrichItemWithLore returns item unchanged when no loreHash', () => {
+  const item = { hash: 999, displayProperties: { name: 'No Lore' } };
+  const loreDefs = {};
+  
+  const enriched = enrichItemWithLore(item, loreDefs);
+  assert(enriched.enrichedLore === undefined, 'Should not have enrichedLore');
 });
 
 test('ARMOR_MOD_IDENTIFIERS contains expected patterns', () => {

@@ -190,6 +190,17 @@ async function loadPlugSetDefinitions(client) {
 }
 
 /**
+ * Loads lore definitions for resolving lore text from loreHash
+ * Per Bungie API (openapi.json), DestinyLoreDefinition contains displayProperties (name, description)
+ * and subtitle fields for in-game lore narratives.
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object>} - Lore definitions (DestinyLoreDefinition)
+ */
+async function loadLoreDefinitions(client) {
+  return await loadDefinitions(client, 'DestinyLoreDefinition');
+}
+
+/**
  * Gets the current season hash by dynamically detecting the active season
  * The current season is determined by finding the season that:
  * 1. Has already started (startDate <= now)
@@ -415,18 +426,28 @@ function enrichItemWithIntrinsicPerk(item, itemDefs) {
  * Enrich item with resolved energy type information
  * Post-Lightfall, armor energy types still exist but no longer restrict mod compatibility.
  * This resolves energy type hashes to readable names using DestinyEnergyTypeDefinition.
+ * 
+ * Per Bungie API (openapi.json), energy type hashes can appear in two locations:
+ * - Armor: item.energy.energyTypeHash (DestinyItemInstanceEnergy)
+ * - Mods/Plugs: item.plug.energyCost.energyTypeHash (DestinyEnergyCostEntry)
+ * This function checks both paths so that both armor and mod items get resolved names.
+ * 
  * @param {object} item - Item to enrich
  * @param {object} energyTypeDefs - Energy type definitions (DestinyEnergyTypeDefinition)
  * @returns {object} - Item with enrichedEnergyType
  */
 function enrichItemWithEnergyType(item, energyTypeDefs) {
-  if (!item.energy || !energyTypeDefs) return item;
+  if (!energyTypeDefs) return item;
   
-  const energyTypeHash = item.energy.energyTypeHash;
+  // Resolve energy type hash from either armor energy block or plug energy cost
+  const energyTypeHash = item.energy?.energyTypeHash || item.plug?.energyCost?.energyTypeHash;
   if (!energyTypeHash) return item;
   
   const energyTypeDef = energyTypeDefs[energyTypeHash];
   if (!energyTypeDef) return item;
+  
+  // Track which source the energy type came from for clarity
+  const source = item.energy?.energyTypeHash ? 'armorEnergy' : 'modEnergyCost';
   
   return {
     ...item,
@@ -436,7 +457,33 @@ function enrichItemWithEnergyType(item, energyTypeDefs) {
       description: energyTypeDef.displayProperties?.description || '',
       enumValue: energyTypeDef.enumValue,
       capacityStatHash: energyTypeDef.capacityStatHash,
-      costStatHash: energyTypeDef.costStatHash
+      costStatHash: energyTypeDef.costStatHash,
+      source
+    }
+  };
+}
+
+/**
+ * Enrich item with resolved lore text from DestinyLoreDefinition
+ * Per Bungie API (openapi.json), items with a loreHash reference a DestinyLoreDefinition
+ * containing displayProperties (name, description) and a subtitle.
+ * @param {object} item - Item to enrich
+ * @param {object} loreDefs - Lore definitions (DestinyLoreDefinition)
+ * @returns {object} - Item with enrichedLore
+ */
+function enrichItemWithLore(item, loreDefs) {
+  if (!item.loreHash || !loreDefs) return item;
+  
+  const loreDef = loreDefs[item.loreHash];
+  if (!loreDef) return item;
+  
+  return {
+    ...item,
+    enrichedLore: {
+      hash: item.loreHash,
+      name: loreDef.displayProperties?.name || '',
+      description: loreDef.displayProperties?.description || '',
+      subtitle: loreDef.subtitle || ''
     }
   };
 }
@@ -453,7 +500,7 @@ async function enrichItemsWithStatNames(items, client) {
 }
 
 /**
- * Enrich items with comprehensive data (stats, perks, damage types, intrinsic perks, energy types)
+ * Enrich items with comprehensive data (stats, perks, damage types, intrinsic perks, energy types, lore)
  * @param {object[]} items - Items to enrich
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Fully enriched items
@@ -465,12 +512,14 @@ async function enrichItems(items, client) {
   const damageTypeDefs = await loadDamageTypeDefinitions(client);
   const itemDefs = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   const energyTypeDefs = await loadEnergyTypeDefinitions(client);
+  const loreDefs = await loadLoreDefinitions(client);
   
   return items.map(item => {
     let enriched = enrichItemWithStats(item, statDefs);
     enriched = enrichItemWithPerks(enriched, perkDefs, damageTypeDefs);
     enriched = enrichItemWithIntrinsicPerk(enriched, itemDefs);
     enriched = enrichItemWithEnergyType(enriched, energyTypeDefs);
+    enriched = enrichItemWithLore(enriched, loreDefs);
     return enriched;
   });
 }
@@ -906,6 +955,7 @@ module.exports = {
   loadSocketTypeDefinitions,
   loadSocketCategoryDefinitions,
   loadPlugSetDefinitions,
+  loadLoreDefinitions,
   getCurrentSeasonHash,
   getCurrentSeasonNumber,
   getCurrentSeasonName,
@@ -915,6 +965,7 @@ module.exports = {
   enrichItemWithPerks,
   enrichItemWithIntrinsicPerk,
   enrichItemWithEnergyType,
+  enrichItemWithLore,
   enrichItemsWithStatNames,
   enrichItems,
   isArmor2_0,

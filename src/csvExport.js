@@ -50,13 +50,29 @@ const STAT_HASHES = {
 
 /**
  * Ammo type enum to human-readable name mapping
- * Reference: https://bungie-net.github.io/multi/schema_Destiny-DestinyAmmunitionType.html
+ * Reference: Bungie API openapi.json - Destiny.DestinyAmmunitionType
  */
 const AMMO_TYPES = {
   0: 'None',
   1: 'Primary',
   2: 'Special',
-  3: 'Heavy'
+  3: 'Heavy',
+  4: 'Unknown'
+};
+
+/**
+ * Energy type enum to human-readable name mapping (fallback when DestinyEnergyTypeDefinition not available)
+ * Reference: Bungie API openapi.json - Destiny.DestinyEnergyType
+ * Note: API identifier "Thermal" maps to in-game name "Solar"
+ */
+const ENERGY_TYPE_NAMES = {
+  0: 'Any',
+  1: 'Arc',
+  2: 'Solar',
+  3: 'Void',
+  4: 'Ghost',
+  5: 'Subclass',
+  6: 'Stasis'
 };
 
 /**
@@ -211,6 +227,10 @@ function transformItemForCSV(item, category, statDefs = null) {
     tierTypeHash: item.inventory?.tierTypeHash || '',
     collectibleHash: item.collectibleHash || '',
     loreHash: item.loreHash || '',
+    seasonHash: item.seasonHash || '',
+    isAdept: item.isAdept || false,
+    displaySource: item.displaySource || '',
+    traitIds: item.traitIds?.join(', ') || '',
   };
   
   // Add icon URL if available
@@ -327,8 +347,12 @@ function transformItemForCSV(item, category, statDefs = null) {
     
     // Resolve energy type name from enrichment (DestinyEnergyTypeDefinition)
     // Post-Lightfall: mods no longer require matching energy type, but the cost type is still tracked
+    // Per Bungie API openapi.json, energyCost.energyType is the DestinyEnergyType enum value
     if (item.enrichedEnergyType) {
       transformed.energyTypeName = item.enrichedEnergyType.name || '';
+    } else if (item.plug?.energyCost?.energyType !== undefined) {
+      // Fallback to enum resolution if enrichment not available
+      transformed.energyTypeName = resolveEnum(item.plug.energyCost.energyType, ENERGY_TYPE_NAMES);
     }
     
     // Add investment stats for mods (stat bonuses they provide)
@@ -388,7 +412,13 @@ function transformItemForCSV(item, category, statDefs = null) {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     transformed.energyCost = item.plug?.energyCost?.energyCost || 0;
     transformed.energyType = item.plug?.energyCost?.energyTypeHash || '';
-    transformed.seasonHash = item.seasonHash || '';
+    
+    // Resolve energy type name (from enrichment or enum fallback)
+    if (item.enrichedEnergyType) {
+      transformed.energyTypeName = item.enrichedEnergyType.name || '';
+    } else if (item.plug?.energyCost?.energyType !== undefined) {
+      transformed.energyTypeName = resolveEnum(item.plug.energyCost.energyType, ENERGY_TYPE_NAMES);
+    }
     
     // Add investment stats if available
     if (item.investmentStats && item.investmentStats.length > 0) {
@@ -439,6 +469,13 @@ function transformItemForCSV(item, category, statDefs = null) {
   // Add sockets information if not already added
   if (transformed.socketCount === undefined && item.sockets?.socketEntries) {
     transformed.socketCount = item.sockets.socketEntries.length;
+  }
+  
+  // Add enriched lore text if available (resolved from DestinyLoreDefinition)
+  if (item.enrichedLore) {
+    transformed.loreName = item.enrichedLore.name || '';
+    transformed.loreDescription = item.enrichedLore.description || '';
+    transformed.loreSubtitle = item.enrichedLore.subtitle || '';
   }
   
   return transformed;
@@ -587,6 +624,7 @@ module.exports = {
   STAT_HASHES,
   STAT_DESCRIPTIONS,
   AMMO_TYPES,
+  ENERGY_TYPE_NAMES,
   WEAPON_SLOT_BUCKETS,
   BREAKER_TYPES,
   DAMAGE_TYPE_NAMES

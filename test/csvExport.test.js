@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName, AMMO_TYPES, WEAPON_SLOT_BUCKETS, BREAKER_TYPES, DAMAGE_TYPE_NAMES, STAT_DESCRIPTIONS, extractElementFromPlugCategory, generateStatReference } = require('../src/csvExport');
+const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName, AMMO_TYPES, ENERGY_TYPE_NAMES, WEAPON_SLOT_BUCKETS, BREAKER_TYPES, DAMAGE_TYPE_NAMES, STAT_DESCRIPTIONS, extractElementFromPlugCategory, generateStatReference } = require('../src/csvExport');
 
 /**
  * Simple test runner
@@ -638,6 +638,102 @@ test('generateStatReference uses correct category label', () => {
   const armorStat = ref.find(s => s.statName === 'Mobility');
   assert(armorStat !== undefined, 'Should include Mobility');
   assertEqual(armorStat.category, 'Armor Stats', 'Should use updated category label');
+});
+
+// Tests for new fields from OpenAPI spec cross-reference
+
+test('AMMO_TYPES includes Unknown (4) per Bungie API spec', () => {
+  assertEqual(AMMO_TYPES[4], 'Unknown', 'Ammo type 4 should be Unknown');
+});
+
+test('ENERGY_TYPE_NAMES maps all enum values per Bungie API spec', () => {
+  assertEqual(ENERGY_TYPE_NAMES[0], 'Any', 'Energy type 0 should be Any');
+  assertEqual(ENERGY_TYPE_NAMES[1], 'Arc', 'Energy type 1 should be Arc');
+  assertEqual(ENERGY_TYPE_NAMES[2], 'Solar', 'Energy type 2 should be Solar');
+  assertEqual(ENERGY_TYPE_NAMES[3], 'Void', 'Energy type 3 should be Void');
+  assertEqual(ENERGY_TYPE_NAMES[6], 'Stasis', 'Energy type 6 should be Stasis');
+});
+
+test('transformItemForCSV includes seasonHash per API spec', () => {
+  const item = {
+    hash: 800,
+    displayProperties: { name: 'Seasonal Weapon' },
+    seasonHash: 3861076347
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.seasonHash, 3861076347, 'Should include seasonHash');
+});
+
+test('transformItemForCSV includes isAdept per API spec', () => {
+  const item = {
+    hash: 801,
+    displayProperties: { name: 'Adept Weapon' },
+    isAdept: true
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.isAdept, true, 'Should include isAdept as true');
+});
+
+test('transformItemForCSV includes displaySource per API spec', () => {
+  const item = {
+    hash: 802,
+    displayProperties: { name: 'Quest Weapon' },
+    displaySource: 'Complete the quest "The Last Word"'
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.displaySource, 'Complete the quest "The Last Word"', 'Should include displaySource');
+});
+
+test('transformItemForCSV includes traitIds per API spec', () => {
+  const item = {
+    hash: 803,
+    displayProperties: { name: 'Foundry Weapon' },
+    traitIds: ['item.weapon', 'foundry.omolon', 'weapon_type.scout_rifle']
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assert(transformed.traitIds.includes('foundry.omolon'), 'Should include foundry trait');
+  assert(transformed.traitIds.includes('weapon_type.scout_rifle'), 'Should include weapon type trait');
+});
+
+test('transformItemForCSV includes enriched lore text when available', () => {
+  const item = {
+    hash: 804,
+    displayProperties: { name: 'Lore Item' },
+    loreHash: 123456,
+    enrichedLore: {
+      hash: 123456,
+      name: 'The Tale',
+      description: 'Once upon a time...',
+      subtitle: 'Part One'
+    }
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.loreName, 'The Tale', 'Should include lore name');
+  assertEqual(transformed.loreDescription, 'Once upon a time...', 'Should include lore description');
+  assertEqual(transformed.loreSubtitle, 'Part One', 'Should include lore subtitle');
+});
+
+test('transformItemForCSV resolves energy type name for armorMods via enum fallback', () => {
+  const item = {
+    hash: 805,
+    displayProperties: { name: 'Test Mod' },
+    plug: {
+      plugCategoryIdentifier: 'enhancements.v2_general',
+      energyCost: {
+        energyCost: 3,
+        energyTypeHash: 999,
+        energyType: 1
+      }
+    }
+  };
+
+  const transformed = transformItemForCSV(item, 'armorMods');
+  assertEqual(transformed.energyTypeName, 'Arc', 'Should resolve via enum fallback');
 });
 
 console.log('\n=== Test Summary ===\n');

@@ -390,7 +390,7 @@ function enrichItemWithEnergyType(item, energyTypeDefs) {
   // Resolve energy type hash from armor shape or mod/plug shape
   const energyTypeHash = item.energy?.energyTypeHash ?? item.plug?.energyCost?.energyTypeHash;
 
-  if (!energyTypeHash) {
+  if (energyTypeHash == null) {
     return item;
   }
 

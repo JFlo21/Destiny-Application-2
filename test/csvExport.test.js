@@ -540,6 +540,58 @@ test('transformItemForCSV handles weapon with no breaker type', () => {
   assertEqual(transformed.breakerType, '', 'breakerType should be empty string');
 });
 
+test('transformItemForCSV populates energyTypeName for armor mod with enrichedEnergyType', () => {
+  const item = {
+    hash: 600,
+    displayProperties: { name: 'Arc Mod' },
+    plug: {
+      plugCategoryIdentifier: 'enhancements.v2_arms',
+      energyCost: { energyCost: 3, energyTypeHash: 591714140 }
+    },
+    enrichedEnergyType: {
+      hash: 591714140,
+      name: 'Arc',
+      description: 'Arc energy',
+      source: 'modEnergyCost'
+    }
+  };
+
+  const transformed = transformItemForCSV(item, 'armorMods');
+  assertEqual(transformed.energyTypeName, 'Arc', 'energyTypeName should be Arc for mod');
+});
+
+test('transformItemForCSV populates energyTypeName for armor with enrichedEnergyType', () => {
+  const item = {
+    hash: 601,
+    displayProperties: { name: 'Solar Helmet' },
+    classType: 0,
+    energy: { energyCapacity: 10, energyType: 2, energyTypeHash: 2399985800 },
+    enrichedEnergyType: {
+      hash: 2399985800,
+      name: 'Solar',
+      description: 'Solar energy',
+      source: 'armorEnergy'
+    }
+  };
+
+  const transformed = transformItemForCSV(item, 'armor');
+  assertEqual(transformed.energyTypeName, 'Solar', 'energyTypeName should be Solar for armor');
+});
+
+test('transformItemForCSV does not set energyTypeName when enrichedEnergyType is absent', () => {
+  const item = {
+    hash: 602,
+    displayProperties: { name: 'Generic Mod' },
+    plug: {
+      plugCategoryIdentifier: 'enhancements.v2_general',
+      energyCost: { energyCost: 1, energyTypeHash: 0 }
+    }
+  };
+
+  const transformed = transformItemForCSV(item, 'armorMods');
+  assert(transformed.energyTypeName === undefined, 'energyTypeName should not be set without enrichedEnergyType');
+});
+
 console.log('\n=== Test Summary ===\n');
 console.log(`Total: ${testsRun}`);
 console.log(`Passed: ${testsPassed}`);

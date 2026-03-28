@@ -12,6 +12,7 @@ const {
   enrichItemWithStats,
   enrichItemWithPerks,
   enrichItemWithIntrinsicPerk,
+  enrichItemWithEnergyType,
   getCurrentSeasonNumber,
   filterUsableItems,
   ITEM_CATEGORIES,
@@ -303,6 +304,76 @@ test('filterUsableItems with allowNonEquippable=false filters out non-equippable
   const filtered = filterUsableItems(items, false);
   assertEqual(filtered.length, 1, 'Should filter out non-equippable items when allowNonEquippable=false');
   assertEqual(filtered[0].displayProperties.name, 'Equippable', 'Should keep equippable item');
+});
+
+test('enrichItemWithEnergyType enriches armor item using item.energy.energyTypeHash', () => {
+  const item = {
+    hash: 100,
+    energy: { energyCapacity: 10, energyType: 1, energyTypeHash: 591714140 }
+  };
+  const energyTypeDefs = {
+    '591714140': {
+      displayProperties: { name: 'Arc', description: 'Arc energy' }
+    }
+  };
+
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assert(enriched.enrichedEnergyType !== undefined, 'Should have enrichedEnergyType');
+  assertEqual(enriched.enrichedEnergyType.hash, 591714140, 'Should use energy type hash');
+  assertEqual(enriched.enrichedEnergyType.name, 'Arc', 'Should resolve energy type name');
+  assertEqual(enriched.enrichedEnergyType.source, 'armorEnergy', 'Source should be armorEnergy');
+});
+
+test('enrichItemWithEnergyType enriches mod item using item.plug.energyCost.energyTypeHash', () => {
+  const item = {
+    hash: 200,
+    plug: {
+      plugCategoryIdentifier: 'enhancements.v2_arms',
+      energyCost: { energyCost: 3, energyTypeHash: 2399985800 }
+    }
+  };
+  const energyTypeDefs = {
+    '2399985800': {
+      displayProperties: { name: 'Solar', description: 'Solar energy' }
+    }
+  };
+
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assert(enriched.enrichedEnergyType !== undefined, 'Should have enrichedEnergyType');
+  assertEqual(enriched.enrichedEnergyType.hash, 2399985800, 'Should use plug energy type hash');
+  assertEqual(enriched.enrichedEnergyType.name, 'Solar', 'Should resolve energy type name');
+  assertEqual(enriched.enrichedEnergyType.source, 'modEnergyCost', 'Source should be modEnergyCost');
+});
+
+test('enrichItemWithEnergyType prefers item.energy.energyTypeHash when both shapes present', () => {
+  const item = {
+    hash: 300,
+    energy: { energyCapacity: 10, energyType: 3, energyTypeHash: 4069572561 },
+    plug: { energyCost: { energyTypeHash: 2399985800 } }
+  };
+  const energyTypeDefs = {
+    '4069572561': { displayProperties: { name: 'Void', description: 'Void energy' } },
+    '2399985800': { displayProperties: { name: 'Solar', description: 'Solar energy' } }
+  };
+
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assertEqual(enriched.enrichedEnergyType.name, 'Void', 'Should prefer armor energy hash');
+  assertEqual(enriched.enrichedEnergyType.source, 'armorEnergy', 'Source should be armorEnergy');
+});
+
+test('enrichItemWithEnergyType returns item unchanged when no energy hash present', () => {
+  const item = { hash: 400, displayProperties: { name: 'No Energy' } };
+  const enriched = enrichItemWithEnergyType(item, {});
+  assert(enriched.enrichedEnergyType === undefined, 'Should not have enrichedEnergyType when no hash');
+});
+
+test('enrichItemWithEnergyType returns item unchanged when hash not in definitions', () => {
+  const item = {
+    hash: 500,
+    plug: { energyCost: { energyTypeHash: 9999999 } }
+  };
+  const enriched = enrichItemWithEnergyType(item, {});
+  assert(enriched.enrichedEnergyType === undefined, 'Should not have enrichedEnergyType when def missing');
 });
 
 // Integration Tests (require network access)

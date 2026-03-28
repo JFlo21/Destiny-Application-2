@@ -308,74 +308,153 @@ test('filterUsableItems with allowNonEquippable=false filters out non-equippable
   assertEqual(filtered[0].displayProperties.name, 'Equippable', 'Should keep equippable item');
 });
 
-test('enrichItemWithEnergyType enriches armor item using item.energy.energyTypeHash', () => {
+test('enrichItemWithEnergyType resolves energy type from DestinyEnergyTypeDefinition', () => {
   const item = {
-    hash: 100,
-    energy: { energyCapacity: 10, energyType: 1, energyTypeHash: 591714140 }
+    energy: {
+      energyCapacity: 10,
+      energyType: 1,
+      energyTypeHash: 591714140
+    }
   };
   const energyTypeDefs = {
     '591714140': {
-      displayProperties: { name: 'Arc', description: 'Arc energy' }
+      displayProperties: { name: 'Arc', description: 'Arc energy type' },
+      enumValue: 1,
+      capacityStatHash: 123,
+      costStatHash: 456
     }
   };
-
+  
   const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
   assert(enriched.enrichedEnergyType !== undefined, 'Should have enrichedEnergyType');
-  assertEqual(enriched.enrichedEnergyType.hash, 591714140, 'Should use energy type hash');
   assertEqual(enriched.enrichedEnergyType.name, 'Arc', 'Should resolve energy type name');
-  assertEqual(enriched.enrichedEnergyType.source, 'armorEnergy', 'Source should be armorEnergy');
+  assertEqual(enriched.enrichedEnergyType.hash, 591714140, 'Should include energy type hash');
+  assertEqual(enriched.enrichedEnergyType.enumValue, 1, 'Should include enum value');
 });
 
-test('enrichItemWithEnergyType enriches mod item using item.plug.energyCost.energyTypeHash', () => {
+test('enrichItemWithEnergyType returns item unchanged when no energy', () => {
+  const item = { hash: 999, displayProperties: { name: 'No Energy' } };
+  const energyTypeDefs = {};
+  
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assert(enriched.enrichedEnergyType === undefined, 'Should not have enrichedEnergyType');
+});
+
+test('enrichItemWithEnergyType returns item unchanged when energy type hash not found', () => {
   const item = {
-    hash: 200,
+    energy: {
+      energyCapacity: 10,
+      energyType: 1,
+      energyTypeHash: 999999
+    }
+  };
+  const energyTypeDefs = {};
+  
+  const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
+  assert(enriched.enrichedEnergyType === undefined, 'Should not have enrichedEnergyType when not found');
+});
+
+test('enrichItemWithEnergyType resolves energy type for armor mods via plug.energyCost.energyTypeHash', () => {
+  const item = {
     plug: {
-      plugCategoryIdentifier: 'enhancements.v2_arms',
-      energyCost: { energyCost: 3, energyTypeHash: 2399985800 }
+      energyCost: {
+        energyType: 1,
+        energyTypeHash: 591714140,
+        energyCost: 3
+      }
     }
   };
   const energyTypeDefs = {
-    '2399985800': {
-      displayProperties: { name: 'Solar', description: 'Solar energy' }
+    '591714140': {
+      displayProperties: { name: 'Arc', description: 'Arc energy type' },
+      enumValue: 1,
+      capacityStatHash: 123,
+      costStatHash: 456
     }
   };
 
   const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
-  assert(enriched.enrichedEnergyType !== undefined, 'Should have enrichedEnergyType');
-  assertEqual(enriched.enrichedEnergyType.hash, 2399985800, 'Should use plug energy type hash');
-  assertEqual(enriched.enrichedEnergyType.name, 'Solar', 'Should resolve energy type name');
-  assertEqual(enriched.enrichedEnergyType.source, 'modEnergyCost', 'Source should be modEnergyCost');
+  assert(enriched.enrichedEnergyType !== undefined, 'Should have enrichedEnergyType for mods');
+  assertEqual(enriched.enrichedEnergyType.name, 'Arc', 'Should resolve energy type name for mods');
+  assertEqual(enriched.enrichedEnergyType.hash, 591714140, 'Should include energy type hash for mods');
+  assertEqual(enriched.enrichedEnergyType.enumValue, 1, 'Should include enum value for mods');
+  assertEqual(enriched.enrichedEnergyType.source, 'modEnergyCost', 'Should indicate mod energy cost source');
 });
 
-test('enrichItemWithEnergyType prefers item.energy.energyTypeHash when both shapes present', () => {
+test('enrichItemWithEnergyType prefers armor energy path over mod path', () => {
   const item = {
-    hash: 300,
-    energy: { energyCapacity: 10, energyType: 3, energyTypeHash: 4069572561 },
-    plug: { energyCost: { energyTypeHash: 2399985800 } }
+    energy: {
+      energyCapacity: 10,
+      energyType: 1,
+      energyTypeHash: 591714140
+    },
+    plug: {
+      energyCost: {
+        energyType: 3,
+        energyTypeHash: 999888,
+        energyCost: 5
+      }
+    }
   };
   const energyTypeDefs = {
-    '4069572561': { displayProperties: { name: 'Void', description: 'Void energy' } },
-    '2399985800': { displayProperties: { name: 'Solar', description: 'Solar energy' } }
+    '591714140': {
+      displayProperties: { name: 'Arc', description: 'Arc energy type' },
+      enumValue: 1
+    },
+    '999888': {
+      displayProperties: { name: 'Void', description: 'Void energy type' },
+      enumValue: 3
+    }
   };
 
   const enriched = enrichItemWithEnergyType(item, energyTypeDefs);
-  assertEqual(enriched.enrichedEnergyType.name, 'Void', 'Should prefer armor energy hash');
-  assertEqual(enriched.enrichedEnergyType.source, 'armorEnergy', 'Source should be armorEnergy');
+  assertEqual(enriched.enrichedEnergyType.name, 'Arc', 'Should prefer armor energy path');
+  assertEqual(enriched.enrichedEnergyType.source, 'armorEnergy', 'Should indicate armor energy source');
 });
 
-test('enrichItemWithEnergyType returns item unchanged when no energy hash present', () => {
-  const item = { hash: 400, displayProperties: { name: 'No Energy' } };
-  const enriched = enrichItemWithEnergyType(item, {});
-  assert(enriched.enrichedEnergyType === undefined, 'Should not have enrichedEnergyType when no hash');
-});
-
-test('enrichItemWithEnergyType returns item unchanged when hash not in definitions', () => {
+test('enrichItemWithLore resolves lore text from DestinyLoreDefinition', () => {
   const item = {
-    hash: 500,
-    plug: { energyCost: { energyTypeHash: 9999999 } }
+    hash: 123,
+    displayProperties: { name: 'Test Item' },
+    loreHash: 456789
   };
-  const enriched = enrichItemWithEnergyType(item, {});
-  assert(enriched.enrichedEnergyType === undefined, 'Should not have enrichedEnergyType when def missing');
+  const loreDefs = {
+    '456789': {
+      displayProperties: {
+        name: 'The Story',
+        description: 'A long time ago in a galaxy far away...'
+      },
+      subtitle: 'Chapter 1'
+    }
+  };
+
+  const enriched = enrichItemWithLore(item, loreDefs);
+  assert(enriched.enrichedLore !== undefined, 'Should have enrichedLore');
+  assertEqual(enriched.enrichedLore.name, 'The Story', 'Should resolve lore name');
+  assertEqual(enriched.enrichedLore.description, 'A long time ago in a galaxy far away...', 'Should resolve lore description');
+  assertEqual(enriched.enrichedLore.subtitle, 'Chapter 1', 'Should resolve lore subtitle');
+});
+
+test('enrichItemWithLore returns item unchanged when no loreHash', () => {
+  const item = { hash: 999, displayProperties: { name: 'No Lore' } };
+  const loreDefs = {};
+  
+  const enriched = enrichItemWithLore(item, loreDefs);
+  assert(enriched.enrichedLore === undefined, 'Should not have enrichedLore');
+});
+
+test('enrichItemWithLore returns item unchanged when loreHash not found in defs', () => {
+  const item = { hash: 999, displayProperties: { name: 'Missing Lore' }, loreHash: 999999 };
+  const loreDefs = {};
+  
+  const enriched = enrichItemWithLore(item, loreDefs);
+  assert(enriched.enrichedLore === undefined, 'Should not have enrichedLore when hash not found');
+});
+
+test('ARMOR_MOD_IDENTIFIERS contains expected patterns', () => {
+  assert(ARMOR_MOD_IDENTIFIERS.includes('v2'), 'Should include v2');
+  assert(ARMOR_MOD_IDENTIFIERS.includes('enhancements'), 'Should include enhancements');
+  assert(ARMOR_MOD_IDENTIFIERS.includes('armor_tier'), 'Should include armor_tier');
 });
 
 // Integration Tests (require network access)

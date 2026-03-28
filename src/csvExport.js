@@ -453,11 +453,6 @@ function transformItemForCSV(item, category, statDefs = null) {
     transformed.damageTypeDescription = item.enrichedDamageType.description;
   }
   
-  // Add enriched energy type if available (populated for both armor and mods)
-  if (item.enrichedEnergyType) {
-    transformed.energyTypeName = item.enrichedEnergyType.name;
-  }
-  
   // Add intrinsic perk information (first socket typically contains intrinsic trait)
   if (item.enrichedIntrinsicPerk) {
     // Use enriched data if available (resolved name and description)

@@ -139,6 +139,15 @@ async function loadDamageTypeDefinitions(client) {
 }
 
 /**
+ * Loads energy type definitions for resolving energy type hashes on armor and mods
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object>} - Energy type definitions (DestinyEnergyTypeDefinition)
+ */
+async function loadEnergyTypeDefinitions(client) {
+  return await loadDefinitions(client, 'DestinyEnergyTypeDefinition');
+}
+
+/**
  * Loads season definitions
  * @param {object} client - Bungie API client
  * @returns {Promise<object>} - Season definitions
@@ -370,6 +379,40 @@ function enrichItemWithIntrinsicPerk(item, itemDefs) {
 }
 
 /**
+ * Enriches an item with resolved energy type data from DestinyEnergyTypeDefinition.
+ * Supports both armor items (item.energy.energyTypeHash) and
+ * mod/plug items (item.plug.energyCost.energyTypeHash).
+ * @param {object} item - Item to enrich
+ * @param {object} energyTypeDefs - Energy type definitions from DestinyEnergyTypeDefinition
+ * @returns {object} - Item with enrichedEnergyType or unchanged if no hash found
+ */
+function enrichItemWithEnergyType(item, energyTypeDefs) {
+  // Resolve energy type hash from armor shape or mod/plug shape
+  const energyTypeHash = item.energy?.energyTypeHash ?? item.plug?.energyCost?.energyTypeHash;
+
+  if (energyTypeHash == null) {
+    return item;
+  }
+
+  const energyTypeDef = energyTypeDefs[String(energyTypeHash)];
+  if (!energyTypeDef) {
+    return item;
+  }
+
+  const source = item.energy?.energyTypeHash !== undefined ? 'armorEnergy' : 'modEnergyCost';
+
+  return {
+    ...item,
+    enrichedEnergyType: {
+      hash: energyTypeHash,
+      name: energyTypeDef.displayProperties?.name || '',
+      description: energyTypeDef.displayProperties?.description || '',
+      source
+    }
+  };
+}
+
+/**
  * Enrich items with stat definitions
  * @param {object[]} items - Items to enrich
  * @param {object} client - Bungie API client
@@ -381,7 +424,7 @@ async function enrichItemsWithStatNames(items, client) {
 }
 
 /**
- * Enrich items with comprehensive data (stats, perks, damage types, intrinsic perks)
+ * Enrich items with comprehensive data (stats, perks, damage types, intrinsic perks, energy types)
  * @param {object[]} items - Items to enrich
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Fully enriched items
@@ -392,11 +435,13 @@ async function enrichItems(items, client) {
   const perkDefs = await loadPerkDefinitions(client);
   const damageTypeDefs = await loadDamageTypeDefinitions(client);
   const itemDefs = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
+  const energyTypeDefs = await loadEnergyTypeDefinitions(client);
   
   return items.map(item => {
     let enriched = enrichItemWithStats(item, statDefs);
     enriched = enrichItemWithPerks(enriched, perkDefs, damageTypeDefs);
     enriched = enrichItemWithIntrinsicPerk(enriched, itemDefs);
+    enriched = enrichItemWithEnergyType(enriched, energyTypeDefs);
     return enriched;
   });
 }
@@ -814,6 +859,7 @@ module.exports = {
   loadStatDefinitions,
   loadPerkDefinitions,
   loadDamageTypeDefinitions,
+  loadEnergyTypeDefinitions,
   loadSeasonDefinitions,
   getCurrentSeasonHash,
   getCurrentSeasonNumber,
@@ -823,6 +869,7 @@ module.exports = {
   enrichItemWithStats,
   enrichItemWithPerks,
   enrichItemWithIntrinsicPerk,
+  enrichItemWithEnergyType,
   enrichItemsWithStatNames,
   enrichItems,
   isArmor2_0,

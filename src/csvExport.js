@@ -3,7 +3,8 @@ const path = require('path');
 const { json2csv } = require('json-2-csv');
 
 /**
- * Armor 2.0 constants (duplicated from buildCrafting.js to avoid circular dependency)
+ * Armor mod system constants (duplicated from buildCrafting.js to avoid circular dependency)
+ * Post-Lightfall, the armor mod system uses universal slots without elemental affinity restrictions.
  */
 const ARMOR_2_0_PLUG_SET_HASH = 4163334830;
 const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145;
@@ -13,7 +14,7 @@ const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145;
  * These are common Destiny 2 stat hashes
  */
 const STAT_HASHES = {
-  // Armor stats (Armor 3.0 system)
+  // Armor stats (current universal mod system, post-Lightfall)
   '2996146975': 'Mobility',
   '392767087': 'Resilience',
   '1943323491': 'Recovery',
@@ -49,13 +50,29 @@ const STAT_HASHES = {
 
 /**
  * Ammo type enum to human-readable name mapping
- * Reference: https://bungie-net.github.io/multi/schema_Destiny-DestinyAmmunitionType.html
+ * Reference: Bungie API openapi.json - Destiny.DestinyAmmunitionType
  */
 const AMMO_TYPES = {
   0: 'None',
   1: 'Primary',
   2: 'Special',
-  3: 'Heavy'
+  3: 'Heavy',
+  4: 'Unknown'
+};
+
+/**
+ * Energy type enum to human-readable name mapping (fallback when DestinyEnergyTypeDefinition not available)
+ * Reference: Bungie API openapi.json - Destiny.DestinyEnergyType
+ * Note: API identifier "Thermal" maps to in-game name "Solar"
+ */
+const ENERGY_TYPE_NAMES = {
+  0: 'Any',
+  1: 'Arc',
+  2: 'Solar',
+  3: 'Void',
+  4: 'Ghost',
+  5: 'Subclass',
+  6: 'Stasis'
 };
 
 /**
@@ -97,14 +114,15 @@ const DAMAGE_TYPE_NAMES = {
 /**
  * Stat descriptions explaining what each stat does in-game
  * Helps users understand the effect of stats for buildcrafting
+ * Updated for current Destiny 2 (post-Lightfall universal mod system)
  */
 const STAT_DESCRIPTIONS = {
-  // Armor stats (Armor 3.0 system)
+  // Armor stats (current universal mod system, post-Lightfall)
   'Mobility': 'Increases movement speed, walk speed, strafe speed, and initial jump height. Reduces dodge cooldown for Hunters.',
-  'Resilience': 'Increases maximum health and shield capacity. Reduces barricade cooldown for Titans. Higher resilience means more survivability.',
+  'Resilience': 'Increases damage resistance in PvE, reducing all incoming damage at higher tiers. Provides increased shield capacity in PvP. Reduces barricade cooldown for Titans. Critical stat for endgame survivability.',
   'Recovery': 'Increases the speed at which health and shields regenerate. Reduces rift cooldown for Warlocks.',
   'Discipline': 'Reduces grenade ability cooldown time.',
-  'Intellect': 'Reduces super ability cooldown time.',
+  'Intellect': 'Reduces super ability cooldown time. Has reduced effectiveness compared to pre-Lightfall due to passive super gain changes.',
   'Strength': 'Reduces melee ability cooldown time.',
   
   // Weapon stats
@@ -167,13 +185,15 @@ function resolveEnum(enumValue, mapping) {
 
 /**
  * Extract element name from a plugCategoryIdentifier string
+ * Supports all current subclass elements: Arc, Solar, Void, Stasis, Strand, and Prismatic.
+ * Prismatic (from The Final Shape) combines Light and Darkness elements.
  * @param {string} plugCategoryIdentifier - The plug category identifier (e.g., 'v400.plugs.aspects.solar')
  * @param {string} fallbackDamageTypeName - Fallback from resolved damage type name
- * @returns {string} - Element name (e.g., 'Solar') or empty string
+ * @returns {string} - Element name (e.g., 'Solar', 'Prismatic') or empty string
  */
 function extractElementFromPlugCategory(plugCategoryIdentifier, fallbackDamageTypeName) {
   const plugCat = (plugCategoryIdentifier || '').toLowerCase();
-  const elementKeywords = ['arc', 'solar', 'void', 'stasis', 'strand'];
+  const elementKeywords = ['arc', 'solar', 'void', 'stasis', 'strand', 'prismatic'];
   const matched = elementKeywords.find(el => plugCat.includes(el));
   if (matched) {
     return matched.charAt(0).toUpperCase() + matched.slice(1);
@@ -206,6 +226,11 @@ function transformItemForCSV(item, category, statDefs = null) {
     tierType: item.inventory?.tierTypeName || '',
     tierTypeHash: item.inventory?.tierTypeHash || '',
     collectibleHash: item.collectibleHash || '',
+    loreHash: item.loreHash || '',
+    seasonHash: item.seasonHash || '',
+    isAdept: item.isAdept || false,
+    displaySource: item.displaySource || '',
+    traitIds: item.traitIds?.join(', ') || '',
   };
   
   // Add icon URL if available
@@ -222,6 +247,14 @@ function transformItemForCSV(item, category, statDefs = null) {
   }
   if (item.iconWatermarkShelved) {
     transformed.iconWatermarkShelvedUrl = `https://www.bungie.net${item.iconWatermarkShelved}`;
+  }
+  
+  // Add tooltip notifications if available (extra descriptions shown in-game)
+  if (item.tooltipNotifications && item.tooltipNotifications.length > 0) {
+    transformed.tooltipNotifications = item.tooltipNotifications
+      .map(n => n.displayString)
+      .filter(Boolean)
+      .join(' | ');
   }
   
   // Use enriched stats if available (with resolved stat names)
@@ -282,11 +315,17 @@ function transformItemForCSV(item, category, statDefs = null) {
     transformed.classType = item.classType !== undefined ? 
       (classTypes[item.classType] || 'Any') : '';
     
-    // Add Armor 2.0 specific fields
+    // Armor energy fields (post-Lightfall: energy type no longer restricts mod compatibility)
     if (item.energy) {
       transformed.energyCapacity = item.energy.energyCapacity || 0;
       transformed.energyType = item.energy.energyType || '';
       transformed.energyTypeHash = item.energy.energyTypeHash || '';
+    }
+    
+    // Resolve energy type name from enrichment (DestinyEnergyTypeDefinition)
+    if (item.enrichedEnergyType) {
+      transformed.energyTypeName = item.enrichedEnergyType.name || '';
+      transformed.energyTypeDescription = item.enrichedEnergyType.description || '';
     }
     
     // Add detailed socket information
@@ -295,7 +334,7 @@ function transformItemForCSV(item, category, statDefs = null) {
       // Count mod sockets specifically
       const modSockets = item.sockets.socketEntries.filter(s => 
         s.socketTypeHash && (
-          s.plugSetHash === ARMOR_2_0_PLUG_SET_HASH || // Armor 2.0 mod socket
+          s.plugSetHash === ARMOR_2_0_PLUG_SET_HASH || // Armor mod socket
           s.singleInitialItemHash === ARMOR_2_0_STAT_PLUG_CATEGORY // Stat mod socket
         )
       );
@@ -304,7 +343,18 @@ function transformItemForCSV(item, category, statDefs = null) {
   } else if (category === 'armorMods') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     transformed.energyCost = item.plug?.energyCost?.energyCost || 0;
-    transformed.energyType = item.plug?.energyCost?.energyTypeHash || '';
+    transformed.energyTypeHash = item.plug?.energyCost?.energyTypeHash || '';
+    transformed.energyTypeEnum = item.plug?.energyCost?.energyType ?? '';
+    
+    // Resolve energy type name from enrichment (DestinyEnergyTypeDefinition)
+    // Post-Lightfall: mods no longer require matching energy type, but the cost type is still tracked
+    // Per Bungie API openapi.json, energyCost.energyType is the DestinyEnergyType enum value
+    if (item.enrichedEnergyType) {
+      transformed.energyTypeName = item.enrichedEnergyType.name || '';
+    } else if (item.plug?.energyCost?.energyType !== undefined) {
+      // Fallback to enum resolution if enrichment not available
+      transformed.energyTypeName = resolveEnum(item.plug.energyCost.energyType, ENERGY_TYPE_NAMES);
+    }
     
     // Add investment stats for mods (stat bonuses they provide)
     if (item.investmentStats && item.investmentStats.length > 0) {
@@ -315,7 +365,8 @@ function transformItemForCSV(item, category, statDefs = null) {
       transformed.statBonuses = statBonuses;
     }
   } else if (category === 'subclasses') {
-    // Subclasses (Void, Solar, Arc, Stasis, Strand) have class type and element type
+    // Subclasses: Arc, Solar, Void, Stasis, Strand, and Prismatic
+    // Prismatic (The Final Shape) combines Light and Darkness elements
     const classTypes = { 0: 'Titan', 1: 'Hunter', 2: 'Warlock' };
     transformed.classType = item.classType !== undefined ? 
       (classTypes[item.classType] || 'Any') : '';
@@ -361,8 +412,15 @@ function transformItemForCSV(item, category, statDefs = null) {
     // Special handling for artifact and champion mods
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     transformed.energyCost = item.plug?.energyCost?.energyCost || 0;
-    transformed.energyType = item.plug?.energyCost?.energyTypeHash || '';
-    transformed.seasonHash = item.seasonHash || '';
+    transformed.energyTypeHash = item.plug?.energyCost?.energyTypeHash || '';
+    transformed.energyTypeEnum = item.plug?.energyCost?.energyType ?? '';
+    
+    // Resolve energy type name (from enrichment or enum fallback)
+    if (item.enrichedEnergyType) {
+      transformed.energyTypeName = item.enrichedEnergyType.name || '';
+    } else if (item.plug?.energyCost?.energyType !== undefined) {
+      transformed.energyTypeName = resolveEnum(item.plug.energyCost.energyType, ENERGY_TYPE_NAMES);
+    }
     
     // Add investment stats if available
     if (item.investmentStats && item.investmentStats.length > 0) {
@@ -395,11 +453,6 @@ function transformItemForCSV(item, category, statDefs = null) {
     transformed.damageTypeDescription = item.enrichedDamageType.description;
   }
   
-  // Add enriched energy type if available (populated for both armor and mods)
-  if (item.enrichedEnergyType) {
-    transformed.energyTypeName = item.enrichedEnergyType.name;
-  }
-  
   // Add intrinsic perk information (first socket typically contains intrinsic trait)
   if (item.enrichedIntrinsicPerk) {
     // Use enriched data if available (resolved name and description)
@@ -418,6 +471,13 @@ function transformItemForCSV(item, category, statDefs = null) {
   // Add sockets information if not already added
   if (transformed.socketCount === undefined && item.sockets?.socketEntries) {
     transformed.socketCount = item.sockets.socketEntries.length;
+  }
+  
+  // Add enriched lore text if available (resolved from DestinyLoreDefinition)
+  if (item.enrichedLore) {
+    transformed.loreName = item.enrichedLore.name || '';
+    transformed.loreDescription = item.enrichedLore.description || '';
+    transformed.loreSubtitle = item.enrichedLore.subtitle || '';
   }
   
   return transformed;
@@ -471,13 +531,13 @@ function exportToCSV(data, filename, category, statDefs = null) {
 function generateStatReference() {
   const statReference = [];
   
-  // Add armor stats (Armor 3.0 system)
+  // Add armor stats (current universal mod system, post-Lightfall)
   const armorStats = ['Mobility', 'Resilience', 'Recovery', 'Discipline', 'Intellect', 'Strength'];
   armorStats.forEach(statName => {
     if (STAT_DESCRIPTIONS[statName]) {
       statReference.push({
         statName,
-        category: 'Armor Stats (Armor 3.0)',
+        category: 'Armor Stats',
         description: STAT_DESCRIPTIONS[statName],
         relevantFor: 'Armor, Abilities, Fragments, Aspects, Armor Mods'
       });
@@ -566,6 +626,7 @@ module.exports = {
   STAT_HASHES,
   STAT_DESCRIPTIONS,
   AMMO_TYPES,
+  ENERGY_TYPE_NAMES,
   WEAPON_SLOT_BUCKETS,
   BREAKER_TYPES,
   DAMAGE_TYPE_NAMES

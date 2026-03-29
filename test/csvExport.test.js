@@ -1,6 +1,6 @@
 const fs = require('fs');
 const path = require('path');
-const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName, AMMO_TYPES, WEAPON_SLOT_BUCKETS, BREAKER_TYPES, DAMAGE_TYPE_NAMES } = require('../src/csvExport');
+const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName, AMMO_TYPES, ENERGY_TYPE_NAMES, WEAPON_SLOT_BUCKETS, BREAKER_TYPES, DAMAGE_TYPE_NAMES, STAT_DESCRIPTIONS, extractElementFromPlugCategory, generateStatReference } = require('../src/csvExport');
 
 /**
  * Simple test runner
@@ -540,56 +540,204 @@ test('transformItemForCSV handles weapon with no breaker type', () => {
   assertEqual(transformed.breakerType, '', 'breakerType should be empty string');
 });
 
-test('transformItemForCSV populates energyTypeName for armor mod with enrichedEnergyType', () => {
+// Tests for new functionality
+
+test('extractElementFromPlugCategory detects Prismatic element', () => {
+  const result = extractElementFromPlugCategory('v400.plugs.aspects.prismatic', '');
+  assertEqual(result, 'Prismatic', 'Should detect Prismatic from plugCategoryIdentifier');
+});
+
+test('extractElementFromPlugCategory still detects all classic elements', () => {
+  assertEqual(extractElementFromPlugCategory('v400.plugs.aspects.arc', ''), 'Arc');
+  assertEqual(extractElementFromPlugCategory('v400.plugs.aspects.solar', ''), 'Solar');
+  assertEqual(extractElementFromPlugCategory('v400.plugs.aspects.void', ''), 'Void');
+  assertEqual(extractElementFromPlugCategory('v400.plugs.aspects.stasis', ''), 'Stasis');
+  assertEqual(extractElementFromPlugCategory('v400.plugs.aspects.strand', ''), 'Strand');
+});
+
+test('transformItemForCSV includes loreHash when available', () => {
   const item = {
     hash: 600,
-    displayProperties: { name: 'Arc Mod' },
-    plug: {
-      plugCategoryIdentifier: 'enhancements.v2_arms',
-      energyCost: { energyCost: 3, energyTypeHash: 591714140 }
+    displayProperties: { name: 'Lore Item' },
+    loreHash: 1234567
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.loreHash, 1234567, 'Should include loreHash');
+});
+
+test('transformItemForCSV includes tooltipNotifications when available', () => {
+  const item = {
+    hash: 601,
+    displayProperties: { name: 'Tooltip Item' },
+    tooltipNotifications: [
+      { displayString: 'This item can be enhanced' },
+      { displayString: 'This item has a deepsight pattern' }
+    ]
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assert(transformed.tooltipNotifications.includes('This item can be enhanced'), 'Should include tooltip text');
+  assert(transformed.tooltipNotifications.includes('deepsight pattern'), 'Should include second tooltip');
+});
+
+test('transformItemForCSV includes enriched energy type name for armor', () => {
+  const item = {
+    hash: 700,
+    displayProperties: { name: 'Arc Armor' },
+    classType: 0,
+    energy: {
+      energyCapacity: 10,
+      energyType: 1,
+      energyTypeHash: 591714140
     },
     enrichedEnergyType: {
       hash: 591714140,
       name: 'Arc',
-      description: 'Arc energy',
-      source: 'modEnergyCost'
-    }
-  };
-
-  const transformed = transformItemForCSV(item, 'armorMods');
-  assertEqual(transformed.energyTypeName, 'Arc', 'energyTypeName should be Arc for mod');
-});
-
-test('transformItemForCSV populates energyTypeName for armor with enrichedEnergyType', () => {
-  const item = {
-    hash: 601,
-    displayProperties: { name: 'Solar Helmet' },
-    classType: 0,
-    energy: { energyCapacity: 10, energyType: 2, energyTypeHash: 2399985800 },
-    enrichedEnergyType: {
-      hash: 2399985800,
-      name: 'Solar',
-      description: 'Solar energy',
-      source: 'armorEnergy'
+      description: 'Arc energy type',
+      enumValue: 1
     }
   };
 
   const transformed = transformItemForCSV(item, 'armor');
-  assertEqual(transformed.energyTypeName, 'Solar', 'energyTypeName should be Solar for armor');
+  assertEqual(transformed.energyTypeName, 'Arc', 'Should resolve energy type name');
+  assertEqual(transformed.energyTypeDescription, 'Arc energy type', 'Should include energy type description');
 });
 
-test('transformItemForCSV does not set energyTypeName when enrichedEnergyType is absent', () => {
+test('transformItemForCSV includes enriched energy type name for armor mods', () => {
   const item = {
-    hash: 602,
-    displayProperties: { name: 'Generic Mod' },
+    hash: 701,
+    displayProperties: { name: 'Arc Mod' },
     plug: {
-      plugCategoryIdentifier: 'enhancements.v2_general',
-      energyCost: { energyCost: 1, energyTypeHash: 0 }
+      plugCategoryIdentifier: 'enhancements.v2_arms',
+      energyCost: { energyCost: 3, energyTypeHash: 591714140, energyType: 1 }
+    },
+    enrichedEnergyType: {
+      hash: 591714140,
+      name: 'Arc',
+      description: 'Arc energy type'
     }
   };
 
   const transformed = transformItemForCSV(item, 'armorMods');
-  assert(transformed.energyTypeName === undefined, 'energyTypeName should not be set without enrichedEnergyType');
+  assertEqual(transformed.energyTypeName, 'Arc', 'Should resolve mod energy type name');
+  assertEqual(transformed.energyTypeHash, 591714140, 'Should export energyTypeHash for mods');
+  assertEqual(transformed.energyTypeEnum, 1, 'Should export energyTypeEnum for mods');
+});
+
+test('STAT_DESCRIPTIONS has updated Resilience description', () => {
+  assert(STAT_DESCRIPTIONS['Resilience'].includes('damage resistance'), 'Resilience should mention damage resistance');
+  assert(STAT_DESCRIPTIONS['Resilience'].includes('PvE'), 'Resilience should mention PvE context');
+  assert(!STAT_DESCRIPTIONS['Resilience'].includes('maximum health and shield capacity'), 'Resilience should not use outdated description');
+});
+
+test('STAT_DESCRIPTIONS has updated Intellect description', () => {
+  assert(STAT_DESCRIPTIONS['Intellect'].includes('super ability cooldown'), 'Intellect should mention super cooldown');
+});
+
+test('generateStatReference uses correct category label', () => {
+  const ref = generateStatReference();
+  const armorStat = ref.find(s => s.statName === 'Mobility');
+  assert(armorStat !== undefined, 'Should include Mobility');
+  assertEqual(armorStat.category, 'Armor Stats', 'Should use updated category label');
+});
+
+// Tests for new fields from OpenAPI spec cross-reference
+
+test('AMMO_TYPES includes Unknown (4) per Bungie API spec', () => {
+  assertEqual(AMMO_TYPES[4], 'Unknown', 'Ammo type 4 should be Unknown');
+});
+
+test('ENERGY_TYPE_NAMES maps all enum values per Bungie API spec', () => {
+  assertEqual(ENERGY_TYPE_NAMES[0], 'Any', 'Energy type 0 should be Any');
+  assertEqual(ENERGY_TYPE_NAMES[1], 'Arc', 'Energy type 1 should be Arc');
+  assertEqual(ENERGY_TYPE_NAMES[2], 'Solar', 'Energy type 2 should be Solar');
+  assertEqual(ENERGY_TYPE_NAMES[3], 'Void', 'Energy type 3 should be Void');
+  assertEqual(ENERGY_TYPE_NAMES[4], 'Ghost', 'Energy type 4 should be Ghost');
+  assertEqual(ENERGY_TYPE_NAMES[5], 'Subclass', 'Energy type 5 should be Subclass');
+  assertEqual(ENERGY_TYPE_NAMES[6], 'Stasis', 'Energy type 6 should be Stasis');
+});
+
+test('transformItemForCSV includes seasonHash per API spec', () => {
+  const item = {
+    hash: 800,
+    displayProperties: { name: 'Seasonal Weapon' },
+    seasonHash: 3861076347
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.seasonHash, 3861076347, 'Should include seasonHash');
+});
+
+test('transformItemForCSV includes isAdept per API spec', () => {
+  const item = {
+    hash: 801,
+    displayProperties: { name: 'Adept Weapon' },
+    isAdept: true
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.isAdept, true, 'Should include isAdept as true');
+});
+
+test('transformItemForCSV includes displaySource per API spec', () => {
+  const item = {
+    hash: 802,
+    displayProperties: { name: 'Quest Weapon' },
+    displaySource: 'Complete the quest "The Last Word"'
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.displaySource, 'Complete the quest "The Last Word"', 'Should include displaySource');
+});
+
+test('transformItemForCSV includes traitIds per API spec', () => {
+  const item = {
+    hash: 803,
+    displayProperties: { name: 'Foundry Weapon' },
+    traitIds: ['item.weapon', 'foundry.omolon', 'weapon_type.scout_rifle']
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assert(transformed.traitIds.includes('foundry.omolon'), 'Should include foundry trait');
+  assert(transformed.traitIds.includes('weapon_type.scout_rifle'), 'Should include weapon type trait');
+});
+
+test('transformItemForCSV includes enriched lore text when available', () => {
+  const item = {
+    hash: 804,
+    displayProperties: { name: 'Lore Item' },
+    loreHash: 123456,
+    enrichedLore: {
+      hash: 123456,
+      name: 'The Tale',
+      description: 'Once upon a time...',
+      subtitle: 'Part One'
+    }
+  };
+
+  const transformed = transformItemForCSV(item, 'weapons');
+  assertEqual(transformed.loreName, 'The Tale', 'Should include lore name');
+  assertEqual(transformed.loreDescription, 'Once upon a time...', 'Should include lore description');
+  assertEqual(transformed.loreSubtitle, 'Part One', 'Should include lore subtitle');
+});
+
+test('transformItemForCSV resolves energy type name for armorMods via enum fallback', () => {
+  const item = {
+    hash: 805,
+    displayProperties: { name: 'Test Mod' },
+    plug: {
+      plugCategoryIdentifier: 'enhancements.v2_general',
+      energyCost: {
+        energyCost: 3,
+        energyTypeHash: 999,
+        energyType: 1
+      }
+    }
+  };
+
+  const transformed = transformItemForCSV(item, 'armorMods');
+  assertEqual(transformed.energyTypeName, 'Arc', 'Should resolve via enum fallback');
 });
 
 console.log('\n=== Test Summary ===\n');

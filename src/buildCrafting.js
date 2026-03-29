@@ -65,10 +65,14 @@ const SUBCLASS_PLUG_CATEGORIES = {
 };
 
 /**
- * Armor 2.0 related constants
- * Armor 2.0 items have energy capacity and support the mod socket system
+ * Armor mod system related constants
+ * Post-Lightfall (2023+), Destiny 2 uses a universal mod system where armor mods
+ * are no longer restricted by elemental affinity. All mods can be slotted into any
+ * armor piece regardless of energy type. The energy capacity system still exists
+ * to limit mod stacking, but elemental affinity restrictions were removed.
+ * These constants help identify mod-compatible armor and socket types.
  */
-const ARMOR_2_0_PLUG_SET_HASH = 4163334830; // Common Armor 2.0 plug set hash
+const ARMOR_2_0_PLUG_SET_HASH = 4163334830; // Common armor mod plug set hash
 const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145; // Stat mod plug category hash
 
 /**
@@ -139,7 +143,18 @@ async function loadDamageTypeDefinitions(client) {
 }
 
 /**
- * Loads energy type definitions for resolving energy type hashes on armor and mods
+ * Loads season definitions
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object>} - Season definitions
+ */
+async function loadSeasonDefinitions(client) {
+  return await loadDefinitions(client, 'DestinySeasonDefinition');
+}
+
+/**
+ * Loads energy type definitions for resolving armor energy types
+ * Post-Lightfall, energy types (Arc, Solar, Void, Stasis, Any) still exist on armor
+ * but no longer restrict which mods can be slotted.
  * @param {object} client - Bungie API client
  * @returns {Promise<object>} - Energy type definitions (DestinyEnergyTypeDefinition)
  */
@@ -148,12 +163,41 @@ async function loadEnergyTypeDefinitions(client) {
 }
 
 /**
- * Loads season definitions
+ * Loads socket type definitions for understanding mod socket categories
  * @param {object} client - Bungie API client
- * @returns {Promise<object>} - Season definitions
+ * @returns {Promise<object>} - Socket type definitions (DestinySocketTypeDefinition)
  */
-async function loadSeasonDefinitions(client) {
-  return await loadDefinitions(client, 'DestinySeasonDefinition');
+async function loadSocketTypeDefinitions(client) {
+  return await loadDefinitions(client, 'DestinySocketTypeDefinition');
+}
+
+/**
+ * Loads socket category definitions for categorizing mod slots
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object>} - Socket category definitions (DestinySocketCategoryDefinition)
+ */
+async function loadSocketCategoryDefinitions(client) {
+  return await loadDefinitions(client, 'DestinySocketCategoryDefinition');
+}
+
+/**
+ * Loads plug set definitions for listing available mods per socket
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object>} - Plug set definitions (DestinyPlugSetDefinition)
+ */
+async function loadPlugSetDefinitions(client) {
+  return await loadDefinitions(client, 'DestinyPlugSetDefinition');
+}
+
+/**
+ * Loads lore definitions for resolving lore text from loreHash
+ * Per Bungie API (openapi.json), DestinyLoreDefinition contains displayProperties (name, description)
+ * and subtitle fields for in-game lore narratives.
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object>} - Lore definitions (DestinyLoreDefinition)
+ */
+async function loadLoreDefinitions(client) {
+  return await loadDefinitions(client, 'DestinyLoreDefinition');
 }
 
 /**
@@ -379,35 +423,68 @@ function enrichItemWithIntrinsicPerk(item, itemDefs) {
 }
 
 /**
- * Enriches an item with resolved energy type data from DestinyEnergyTypeDefinition.
- * Supports both armor items (item.energy.energyTypeHash) and
- * mod/plug items (item.plug.energyCost.energyTypeHash).
+ * Enrich item with resolved energy type information
+ * Post-Lightfall, armor energy types still exist but no longer restrict mod compatibility.
+ * This resolves energy type hashes to readable names using DestinyEnergyTypeDefinition.
+ * 
+ * Per Bungie API (openapi.json), energy type hashes can appear in two locations:
+ * - Armor: item.energy.energyTypeHash (DestinyItemInstanceEnergy)
+ * - Mods/Plugs: item.plug.energyCost.energyTypeHash (DestinyEnergyCostEntry)
+ * This function checks both paths so that both armor and mod items get resolved names.
+ * 
  * @param {object} item - Item to enrich
- * @param {object} energyTypeDefs - Energy type definitions from DestinyEnergyTypeDefinition
- * @returns {object} - Item with enrichedEnergyType or unchanged if no hash found
+ * @param {object} energyTypeDefs - Energy type definitions (DestinyEnergyTypeDefinition)
+ * @returns {object} - Item with enrichedEnergyType
  */
 function enrichItemWithEnergyType(item, energyTypeDefs) {
-  // Resolve energy type hash from armor shape or mod/plug shape
+  if (!energyTypeDefs) return item;
+  
+  // Resolve energy type hash from either armor energy block or plug energy cost
+  // Use nullish coalescing (??) to correctly handle energyTypeHash value of 0
   const energyTypeHash = item.energy?.energyTypeHash ?? item.plug?.energyCost?.energyTypeHash;
-
-  if (energyTypeHash == null) {
-    return item;
-  }
-
-  const energyTypeDef = energyTypeDefs[String(energyTypeHash)];
-  if (!energyTypeDef) {
-    return item;
-  }
-
-  const source = item.energy?.energyTypeHash !== undefined ? 'armorEnergy' : 'modEnergyCost';
-
+  if (energyTypeHash == null) return item;
+  
+  const energyTypeDef = energyTypeDefs[energyTypeHash];
+  if (!energyTypeDef) return item;
+  
+  // Track which source the energy type came from for clarity
+  const source = (item.energy?.energyTypeHash != null) ? 'armorEnergy' : 'modEnergyCost';
+  
   return {
     ...item,
     enrichedEnergyType: {
       hash: energyTypeHash,
       name: energyTypeDef.displayProperties?.name || '',
       description: energyTypeDef.displayProperties?.description || '',
+      enumValue: energyTypeDef.enumValue,
+      capacityStatHash: energyTypeDef.capacityStatHash,
+      costStatHash: energyTypeDef.costStatHash,
       source
+    }
+  };
+}
+
+/**
+ * Enrich item with resolved lore text from DestinyLoreDefinition
+ * Per Bungie API (openapi.json), items with a loreHash reference a DestinyLoreDefinition
+ * containing displayProperties (name, description) and a subtitle.
+ * @param {object} item - Item to enrich
+ * @param {object} loreDefs - Lore definitions (DestinyLoreDefinition)
+ * @returns {object} - Item with enrichedLore
+ */
+function enrichItemWithLore(item, loreDefs) {
+  if (!item.loreHash || !loreDefs) return item;
+  
+  const loreDef = loreDefs[item.loreHash];
+  if (!loreDef) return item;
+  
+  return {
+    ...item,
+    enrichedLore: {
+      hash: item.loreHash,
+      name: loreDef.displayProperties?.name || '',
+      description: loreDef.displayProperties?.description || '',
+      subtitle: loreDef.subtitle || ''
     }
   };
 }
@@ -424,7 +501,7 @@ async function enrichItemsWithStatNames(items, client) {
 }
 
 /**
- * Enrich items with comprehensive data (stats, perks, damage types, intrinsic perks, energy types)
+ * Enrich items with comprehensive data (stats, perks, damage types, intrinsic perks, energy types, lore)
  * @param {object[]} items - Items to enrich
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Fully enriched items
@@ -436,12 +513,14 @@ async function enrichItems(items, client) {
   const damageTypeDefs = await loadDamageTypeDefinitions(client);
   const itemDefs = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   const energyTypeDefs = await loadEnergyTypeDefinitions(client);
+  const loreDefs = await loadLoreDefinitions(client);
   
   return items.map(item => {
     let enriched = enrichItemWithStats(item, statDefs);
     enriched = enrichItemWithPerks(enriched, perkDefs, damageTypeDefs);
     enriched = enrichItemWithIntrinsicPerk(enriched, itemDefs);
     enriched = enrichItemWithEnergyType(enriched, energyTypeDefs);
+    enriched = enrichItemWithLore(enriched, loreDefs);
     return enriched;
   });
 }
@@ -525,9 +604,11 @@ async function getWeapons(client) {
 }
 
 /**
- * Check if an armor item is Armor 2.0 (has energy capacity and mod slots)
+ * Check if an armor item uses the modern armor system (has energy capacity and mod slots)
+ * Post-Lightfall (2023+), all current armor uses this system with universal mod slots.
+ * Energy types still exist on armor but no longer restrict which mods can be equipped.
  * @param {object} item - Armor item to check
- * @returns {boolean} - True if item is Armor 2.0
+ * @returns {boolean} - True if item uses the modern armor system
  */
 function isArmor2_0(item) {
   // Armor 2.0 items have energy capacity
@@ -549,7 +630,10 @@ function isArmor2_0(item) {
 /**
  * Gets all armor from the manifest
  * Filters out redacted items and non-equippable items to ensure only current, usable armor
- * Note: As of 2024+, all armor in Destiny 2 uses the Armor 2.0 system (legacy armor was sunset)
+ * Note: Post-Lightfall (2023+), all armor uses universal mod slots with no elemental affinity
+ * restrictions. Energy capacity still limits mod stacking but energy type no longer restricts
+ * which mods can be slotted. The Armor Charge system replaced Charged with Light and
+ * Elemental Wells mechanics.
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of armor definitions
  */
@@ -557,9 +641,8 @@ async function getArmor(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   const allArmor = filterByCategory(items, ITEM_CATEGORIES.ARMOR);
   
-  // Note: As of 2024+, all armor in Destiny 2 is Armor 2.0 (legacy armor was sunset)
-  // The isArmor2_0 filter can be overly restrictive if API data doesn't include energy fields
-  // So we'll just use filterUsableItems to get current, equippable armor
+  // Note: Post-Lightfall, all armor uses universal mod slots (legacy armor was sunset)
+  // The isArmor2_0 filter is no longer needed as all current armor is modern
   
   // Filter to only usable items (not redacted, equippable, with names)
   const usableArmor = filterUsableItems(allArmor);
@@ -568,14 +651,17 @@ async function getArmor(client) {
 }
 
 /**
- * Armor 2.0 mod identifier patterns
+ * Armor mod identifier patterns for the current universal mod system
+ * Post-Lightfall, mods use these patterns in plugCategoryIdentifier
  */
-const ARMOR_2_0_MOD_IDENTIFIERS = ['v2', 'enhancements', 'armor_tier'];
+const ARMOR_MOD_IDENTIFIERS = ['v2', 'enhancements', 'armor_tier'];
 
 /**
  * Gets all armor mods from the manifest
  * Filters out redacted items and non-equippable items to ensure only current, usable mods
- * Note: As of 2024+, all mods in Destiny 2 are compatible with the Armor 2.0 system (legacy mods were sunset)
+ * Note: Post-Lightfall (2023+), all mods use universal slots and are no longer
+ * restricted by elemental affinity. The Armor Charge system replaced the older
+ * Charged with Light and Elemental Wells mod categories.
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of armor mod definitions
  */
@@ -583,9 +669,9 @@ async function getArmorMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
   const allMods = filterByCategory(items, ITEM_CATEGORIES.ARMOR_MODS);
   
-  // Note: As of 2024+, all mods in Destiny 2 are Armor 2.0 compatible (legacy mods were sunset)
-  // The energy cost filter can be overly restrictive if API data structure changes
-  // We'll just use filterUsableItems to get current, equippable mods
+  // Note: Post-Lightfall, all mods use universal slots (legacy mods were sunset)
+  // The energy cost filter is no longer needed for affinity-based restrictions
+  // We just use filterUsableItems to get current, usable mods
   
   // Filter to only usable items (not redacted, with names)
   // Allow non-equippable items since armor mods are plugs and may not be marked as equippable
@@ -596,6 +682,9 @@ async function getArmorMods(client) {
 
 /**
  * Gets subclass-related items (aspects, fragments, abilities)
+ * Includes all subclass types: Arc, Solar, Void, Stasis, Strand, and Prismatic.
+ * Prismatic (added in The Final Shape) combines abilities from all Light and Darkness
+ * elements into one subclass, with a unique Transcendence mechanic.
  * Filters out redacted and non-equippable items
  * @param {object} client - Bungie API client
  * @returns {Promise<object>} - Object containing aspects, fragments, and abilities
@@ -608,6 +697,7 @@ async function getSubclassItems(client) {
   
   // Per Bungie API (https://github.com/Bungie-net/api), aspects use plugCategoryIdentifier patterns like:
   // - 'Subclass.Aspects' or 'v400.plugs.aspects' or similar containing 'aspect'
+  // - Prismatic aspects may use 'prismatic' patterns
   // Reference: https://bungie-net.github.io/multi/schema_Destiny-Definitions-Items-DestinyItemPlugDefinition.html
   const aspects = Object.values(items).filter(item => {
     const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
@@ -633,6 +723,7 @@ async function getSubclassItems(client) {
   
   // Get subclass abilities (grenades, melees, class abilities, supers)
   // Per Bungie API, abilities use plugCategoryIdentifier patterns like 'v400.plugs.abilities', 'grenades', etc.
+  // Also captures Prismatic-specific ability variants
   const abilities = Object.values(items).filter(item => {
     const plugCat = item.plug?.plugCategoryIdentifier?.toLowerCase() || '';
     
@@ -648,6 +739,7 @@ async function getSubclassItems(client) {
   // Note: Subclass aspects, fragments, and abilities persist across seasons.
   // Unlike seasonal artifact mods which change each season, these subclass items
   // remain available to players indefinitely once unlocked, so we export all of them.
+  // This includes Prismatic subclass items which combine Light and Darkness elements.
   // Aspects, fragments, and abilities are plugs and may not be marked as equippable
   return {
     subclasses: filterUsableItems(subclassItems),
@@ -781,10 +873,10 @@ async function getAllBuildCraftingData(client) {
   console.log(`Found ${weapons.length} weapons`);
   
   const armor = await getArmor(client);
-  console.log(`Found ${armor.length} Armor 2.0 pieces`);
+  console.log(`Found ${armor.length} armor pieces`);
   
   const armorMods = await getArmorMods(client);
-  console.log(`Found ${armorMods.length} Armor 2.0 mods`);
+  console.log(`Found ${armorMods.length} armor mods`);
   
   const subclassData = await getSubclassItems(client);
   console.log(`Found ${subclassData.subclasses.length} subclasses`);
@@ -853,14 +945,18 @@ module.exports = {
   SUBCLASS_PLUG_CATEGORIES,
   ARMOR_2_0_PLUG_SET_HASH,
   ARMOR_2_0_STAT_PLUG_CATEGORY,
-  ARMOR_2_0_MOD_IDENTIFIERS,
+  ARMOR_MOD_IDENTIFIERS,
   loadManifest,
   loadDefinitions,
   loadStatDefinitions,
   loadPerkDefinitions,
   loadDamageTypeDefinitions,
-  loadEnergyTypeDefinitions,
   loadSeasonDefinitions,
+  loadEnergyTypeDefinitions,
+  loadSocketTypeDefinitions,
+  loadSocketCategoryDefinitions,
+  loadPlugSetDefinitions,
+  loadLoreDefinitions,
   getCurrentSeasonHash,
   getCurrentSeasonNumber,
   getCurrentSeasonName,
@@ -870,6 +966,7 @@ module.exports = {
   enrichItemWithPerks,
   enrichItemWithIntrinsicPerk,
   enrichItemWithEnergyType,
+  enrichItemWithLore,
   enrichItemsWithStatNames,
   enrichItems,
   isArmor2_0,

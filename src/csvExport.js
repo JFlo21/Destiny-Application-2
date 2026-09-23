@@ -1,115 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 const { json2csv } = require('json-2-csv');
-
-/**
- * Armor mod system constants (duplicated from buildCrafting.js to avoid circular dependency)
- * Post-Lightfall, the armor mod system uses universal slots without elemental affinity restrictions.
- */
-const ARMOR_2_0_PLUG_SET_HASH = 4163334830;
-const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145;
-
-/**
- * Stat type hash to name mapping (fallback for when stat definitions aren't available)
- * These are common Destiny 2 stat hashes
- */
-const STAT_HASHES = {
-  // Armor stats (current universal mod system, post-Lightfall)
-  '2996146975': 'Mobility',
-  '392767087': 'Resilience',
-  '1943323491': 'Recovery',
-  '1735777505': 'Discipline',
-  '144602215': 'Intellect',
-  '4244567218': 'Strength',
-  
-  // Weapon stats
-  '4284893193': 'RPM (Rounds Per Minute)',
-  '4043523819': 'Impact',
-  '1240592695': 'Range',
-  '155624089': 'Stability',
-  '943549884': 'Handling',
-  '4188031367': 'Reload Speed',
-  '1345609583': 'Aim Assistance',
-  '2715839340': 'Recoil Direction',
-  '3555269338': 'Zoom',
-  '3871231066': 'Magazine',
-  '2961396640': 'Charge Time',
-  '447667954': 'Draw Time',
-  '925767036': 'Ammo Capacity',
-  '1931675084': 'Inventory Size',
-  '3614673599': 'Blast Radius',
-  '2523465841': 'Velocity',
-  '1591432999': 'Accuracy',
-  '3597844532': 'Shield Duration',
-  '1546607977': 'Guard Resistance',
-  '209426660': 'Guard Efficiency',
-  '3022301683': 'Guard Endurance',
-  '2837207746': 'Swing Speed',
-  '1486958981': 'Charge Rate'
-};
-
-/**
- * Ammo type enum to human-readable name mapping
- * Reference: Bungie API openapi.json - Destiny.DestinyAmmunitionType
- */
-const AMMO_TYPES = {
-  0: 'None',
-  1: 'Primary',
-  2: 'Special',
-  3: 'Heavy',
-  4: 'Unknown'
-};
-
-/**
- * Energy type enum to human-readable name mapping (fallback when DestinyEnergyTypeDefinition not available)
- * Reference: Bungie API openapi.json - Destiny.DestinyEnergyType
- * Note: API identifier "Thermal" maps to in-game name "Solar"
- */
-const ENERGY_TYPE_NAMES = {
-  0: 'Any',
-  1: 'Arc',
-  2: 'Solar',
-  3: 'Void',
-  4: 'Ghost',
-  5: 'Subclass',
-  6: 'Stasis'
-};
-
-/**
- * Weapon slot bucket hashes to human-readable names
- * These are DestinyInventoryBucketDefinition hashes for weapon slots
- */
-const WEAPON_SLOT_BUCKETS = {
-  '1498876634': 'Kinetic',
-  '2465295065': 'Energy',
-  '953998645': 'Power'
-};
-
-/**
- * Breaker type enum to human-readable name mapping
- * Reference: https://bungie-net.github.io/multi/schema_Destiny-DestinyBreakerType.html
- */
-const BREAKER_TYPES = {
-  0: 'None',
-  1: 'Shield-Piercing (Anti-Barrier)',
-  2: 'Disruption (Overload)',
-  3: 'Stagger (Unstoppable)'
-};
-
-/**
- * Damage type enum to human-readable name mapping
- * Reference: https://bungie-net.github.io/multi/schema_Destiny-DamageType.html
- */
-const DAMAGE_TYPE_NAMES = {
-  0: 'None',
-  1: 'Kinetic',
-  2: 'Arc',
-  3: 'Solar',
-  4: 'Void',
-  5: 'Raid',
-  6: 'Stasis',
-  7: 'Strand'
-};
+const {
+  ARMOR_2_0_PLUG_SET_HASH,
+  ARMOR_2_0_STAT_PLUG_CATEGORY,
+  STAT_HASHES,
+  AMMO_TYPES,
+  ENERGY_TYPE_NAMES,
+  WEAPON_SLOT_BUCKETS,
+  BREAKER_TYPES,
+  DAMAGE_TYPE_NAMES,
+  CLASS_TYPES,
+  FRAGMENT_SLOTS_STAT_HASH,
+} = require('./constants');
+const { EXPORT_CATEGORIES } = require('./categories');
 
 /**
  * Stat descriptions explaining what each stat does in-game
@@ -297,8 +201,11 @@ function transformItemForCSV(item, category, statDefs = null) {
     // Ammo type resolved to name
     transformed.ammoType = resolveEnum(item.equippingBlock?.ammoType, AMMO_TYPES);
     
-    // Damage type resolved to name from enum
-    transformed.defaultDamageType = resolveEnum(item.defaultDamageType, DAMAGE_TYPE_NAMES);
+    // Damage type: `damageType` is the resolved name, `damageTypeEnum` the raw enum
+    transformed.damageTypeEnum = item.defaultDamageType ?? '';
+    transformed.damageType = resolveEnum(item.defaultDamageType, DAMAGE_TYPE_NAMES);
+    // Kept for backward compatibility with older sheets/tests
+    transformed.defaultDamageType = transformed.damageType;
     transformed.damageTypeHashes = item.damageTypeHashes?.join(', ') || '';
     
     // Breaker type (intrinsic Anti-Barrier/Overload/Unstoppable on exotics)
@@ -311,7 +218,7 @@ function transformItemForCSV(item, category, statDefs = null) {
     }
   } else if (category === 'armor') {
     // Map class type to readable name
-    const classTypes = { 0: 'Titan', 1: 'Hunter', 2: 'Warlock' };
+    const classTypes = CLASS_TYPES;
     transformed.classType = item.classType !== undefined ? 
       (classTypes[item.classType] || 'Any') : '';
     
@@ -367,22 +274,35 @@ function transformItemForCSV(item, category, statDefs = null) {
   } else if (category === 'subclasses') {
     // Subclasses: Arc, Solar, Void, Stasis, Strand, and Prismatic
     // Prismatic (The Final Shape) combines Light and Darkness elements
-    const classTypes = { 0: 'Titan', 1: 'Hunter', 2: 'Warlock' };
-    transformed.classType = item.classType !== undefined ? 
-      (classTypes[item.classType] || 'Any') : '';
+    transformed.classType = item.classType !== undefined ?
+      (CLASS_TYPES[item.classType] || 'Any') : '';
     const subDmgEnum = item.defaultDamageType || item.talentGrid?.hudDamageType || '';
-    transformed.damageType = subDmgEnum;
-    transformed.damageTypeName = resolveEnum(subDmgEnum, DAMAGE_TYPE_NAMES);
+    // `damageType` is the resolved name; `damageTypeEnum` keeps the raw enum number
+    transformed.damageTypeEnum = subDmgEnum;
+    transformed.damageType = resolveEnum(subDmgEnum, DAMAGE_TYPE_NAMES);
+    transformed.damageTypeName = transformed.damageType;
     transformed.itemCategoryHashes = item.itemCategoryHashes?.join(', ') || '';
   } else if (category === 'aspects' || category === 'fragments') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     const afDmgEnum = item.talentGrid?.hudDamageType || '';
-    transformed.damageType = afDmgEnum;
-    transformed.damageTypeName = resolveEnum(afDmgEnum, DAMAGE_TYPE_NAMES);
+    transformed.damageTypeEnum = afDmgEnum;
+    transformed.damageType = resolveEnum(afDmgEnum, DAMAGE_TYPE_NAMES);
+    transformed.damageTypeName = transformed.damageType;
     transformed.element = extractElementFromPlugCategory(
       item.plug?.plugCategoryIdentifier, transformed.damageTypeName
     );
-    
+
+    // Aspects: derive number of fragment slots granted from investmentStats
+    // (stat hash 2223994109 "Fragment Slots" / subclass energy capacity)
+    if (category === 'aspects' && item.investmentStats?.length) {
+      const fragmentSlotStat = item.investmentStats.find(
+        (stat) => Number(stat.statTypeHash) === FRAGMENT_SLOTS_STAT_HASH
+      );
+      if (fragmentSlotStat) {
+        transformed.fragmentSlots = fragmentSlotStat.value || 0;
+      }
+    }
+
     // Add investment stats for fragments (stat bonuses/penalties they provide)
     if (item.investmentStats && item.investmentStats.length > 0) {
       const statBonuses = item.investmentStats.map(stat => {
@@ -394,8 +314,9 @@ function transformItemForCSV(item, category, statDefs = null) {
   } else if (category === 'abilities') {
     transformed.plugCategoryIdentifier = item.plug?.plugCategoryIdentifier || '';
     const abilDmgEnum = item.talentGrid?.hudDamageType || '';
-    transformed.damageType = abilDmgEnum;
-    transformed.damageTypeName = resolveEnum(abilDmgEnum, DAMAGE_TYPE_NAMES);
+    transformed.damageTypeEnum = abilDmgEnum;
+    transformed.damageType = resolveEnum(abilDmgEnum, DAMAGE_TYPE_NAMES);
+    transformed.damageTypeName = transformed.damageType;
     transformed.element = extractElementFromPlugCategory(
       item.plug?.plugCategoryIdentifier, transformed.damageTypeName
     );
@@ -414,6 +335,16 @@ function transformItemForCSV(item, category, statDefs = null) {
     transformed.energyCost = item.plug?.energyCost?.energyCost || 0;
     transformed.energyTypeHash = item.plug?.energyCost?.energyTypeHash || '';
     transformed.energyTypeEnum = item.plug?.energyCost?.energyType ?? '';
+
+    // Breaker type (which champion type this mod stuns), when present
+    if (item.breakerType !== undefined) {
+      transformed.breakerType = resolveEnum(item.breakerType, BREAKER_TYPES);
+    }
+
+    // Artifact mods carry an isCurrentSeason flag from getArtifactMods
+    if (category === 'artifactMods' && item.isCurrentSeason !== undefined) {
+      transformed.isCurrentSeason = Boolean(item.isCurrentSeason);
+    }
     
     // Resolve energy type name (from enrichment or enum fallback)
     if (item.enrichedEnergyType) {
@@ -449,8 +380,13 @@ function transformItemForCSV(item, category, statDefs = null) {
   
   // Add enriched damage type if available
   if (item.enrichedDamageType) {
+    // Enriched (DestinyDamageTypeDefinition) name is authoritative for both columns
+    transformed.damageType = item.enrichedDamageType.name;
     transformed.damageTypeName = item.enrichedDamageType.name;
     transformed.damageTypeDescription = item.enrichedDamageType.description;
+    if (item.enrichedDamageType.enumValue !== undefined) {
+      transformed.damageTypeEnum = item.enrichedDamageType.enumValue;
+    }
   }
   
   // Add intrinsic perk information (first socket typically contains intrinsic trait)
@@ -589,20 +525,14 @@ function generateSummaryData(buildData) {
  * @param {object} statDefs - Optional stat definitions for resolving stat hashes
  */
 function exportAllToCSV(buildData, outputDir, statDefs = null) {
+  // Built from the shared category list plus the summary/statReference synthetics
   const exports = [
     { name: 'summary', data: generateSummaryData(buildData), category: 'summary' },
-    { name: 'weapons', data: buildData.weapons, category: 'weapons' },
-    { name: 'armor', data: buildData.armor, category: 'armor' },
-    { name: 'armor-mods', data: buildData.armorMods, category: 'armorMods' },
-    { name: 'subclasses', data: buildData.subclasses, category: 'subclasses' },
-    { name: 'aspects', data: buildData.aspects, category: 'aspects' },
-    { name: 'fragments', data: buildData.fragments, category: 'fragments' },
-    { name: 'abilities', data: buildData.abilities, category: 'abilities' },
-    { name: 'damage-types', data: buildData.damageTypes, category: 'damageTypes' },
-    { name: 'artifact-mods', data: buildData.artifactMods, category: 'artifactMods' },
-    { name: 'champion-mods', data: buildData.championMods, category: 'championMods' },
-    { name: 'enemy-weaknesses', data: buildData.enemyWeaknesses, category: 'enemyWeaknesses' },
-    { name: 'stat-reference', data: generateStatReference(), category: 'statReference' }
+    ...EXPORT_CATEGORIES.map(({ key, category, fileName }) => ({
+      name: fileName,
+      data: key === 'statReference' ? generateStatReference() : buildData[key],
+      category,
+    })),
   ];
   
   for (const { name, data, category } of exports) {

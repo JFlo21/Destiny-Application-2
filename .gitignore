@@ -6,3 +6,4 @@ data/
 destiny-data/
 *credentials.json
 service-account*.json
+.cache/

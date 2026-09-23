@@ -1,79 +1,25 @@
 const { getManifest, downloadManifestComponent, getDefinitionPath } = require('./manifest');
 const { exportEnemyWeaknessData } = require('./enemyWeaknesses');
+const {
+  ITEM_CATEGORIES: SHARED_ITEM_CATEGORIES,
+  SOCKET_CATEGORY_HASHES,
+} = require('./constants');
 
 /**
  * Item categories for filtering
  * Reference: https://bungie-net.github.io/multi/schema_Destiny-Definitions-DestinyItemCategoryDefinition.html
+ * (kept in sync with src/constants.js)
  */
-const ITEM_CATEGORIES = {
-  WEAPON: 1, // Weapon category
-  ARMOR: 20, // Armor category
-  ARMOR_MODS: 59, // Armor Mods category
-  GHOST: 39, // Ghost category
-  SUBCLASS: 1403, // Subclass category
-};
+const ITEM_CATEGORIES = SHARED_ITEM_CATEGORIES;
 
-/**
- * Item subtypes for weapons
- */
-const WEAPON_TYPES = {
-  AUTO_RIFLE: 6,
-  SHOTGUN: 7,
-  MACHINE_GUN: 8,
-  HAND_CANNON: 9,
-  ROCKET_LAUNCHER: 10,
-  FUSION_RIFLE: 11,
-  SNIPER_RIFLE: 12,
-  PULSE_RIFLE: 13,
-  SCOUT_RIFLE: 14,
-  SIDEARM: 17,
-  SWORD: 18,
-  LINEAR_FUSION: 22,
-  GRENADE_LAUNCHER: 23,
-  SUBMACHINE_GUN: 24,
-  TRACE_RIFLE: 25,
-  BOW: 26,
-  GLAIVE: 27
-};
-
-/**
- * Armor types
- */
-const ARMOR_TYPES = {
-  HELMET: 26,
-  GAUNTLETS: 27,
-  CHEST: 28,
-  LEGS: 29,
-  CLASS_ITEM: 30
-};
-
-/**
- * Plug category identifiers for subclass elements.
- * These patterns are used in plugCategoryIdentifier to identify subclass-related items.
- * Reference: https://bungie-net.github.io/multi/schema_Destiny-Definitions-Items-DestinyItemPlugDefinition.html
- * Common patterns include:
- * - Aspects: 'Subclass.Aspects', 'v400.plugs.aspects', etc. (contains 'aspects')
- * - Fragments: 'Subclass.Fragments', 'v400.plugs.fragments', etc. (contains 'fragments')
- */
-const SUBCLASS_PLUG_CATEGORIES = {
-  ASPECTS: 'aspects',
-  FRAGMENTS: 'fragments',
-  SUPER: 'super',
-  GRENADE: 'grenade',
-  MELEE: 'melee',
-  CLASS_ABILITY: 'class_ability'
-};
-
-/**
- * Armor mod system related constants
- * Post-Lightfall (2023+), Destiny 2 uses a universal mod system where armor mods
- * are no longer restricted by elemental affinity. All mods can be slotted into any
- * armor piece regardless of energy type. The energy capacity system still exists
- * to limit mod stacking, but elemental affinity restrictions were removed.
- * These constants help identify mod-compatible armor and socket types.
- */
-const ARMOR_2_0_PLUG_SET_HASH = 4163334830; // Common armor mod plug set hash
-const ARMOR_2_0_STAT_PLUG_CATEGORY = 1744546145; // Stat mod plug category hash
+// Weapon/armor subtype enums and mod-system constants are centralized in src/constants.js
+const {
+  WEAPON_TYPES,
+  ARMOR_TYPES,
+  SUBCLASS_PLUG_CATEGORIES,
+  ARMOR_2_0_PLUG_SET_HASH,
+  ARMOR_2_0_STAT_PLUG_CATEGORY,
+} = require('./constants');
 
 /**
  * Cache for manifest data
@@ -109,7 +55,11 @@ async function loadDefinitions(client, tableName) {
     const manifest = await loadManifest(client);
     const path = getDefinitionPath(manifest, tableName);
     console.log(`Loading ${tableName}...`);
-    definitionsCache[tableName] = await downloadManifestComponent(path);
+    // Pass version + table so manifest.js can serve/populate the disk cache
+    definitionsCache[tableName] = await downloadManifestComponent(path, {
+      version: manifest.version,
+      tableName
+    });
     console.log(`${tableName} loaded successfully`);
   }
   return definitionsCache[tableName];
@@ -397,21 +347,32 @@ function enrichItemWithPerks(item, perkDefs, damageTypeDefs) {
 }
 
 /**
- * Enrich item with resolved intrinsic perk information
- * The intrinsic perk (first socket) defines the weapon's frame/archetype
+ * Enrich item with resolved intrinsic perk information.
+ *
+ * The intrinsic perk defines a weapon's frame/archetype or an exotic armor's
+ * signature perk. Rather than blindly using socketEntries[0] (which for armor
+ * is often an ornament or shader socket), we locate the socket category with
+ * socketCategoryHash === 3956125808 (INTRINSIC_TRAITS) via
+ * item.sockets.socketCategories and use its first socket index.
+ * We only fall back to socket index 0 when no socketCategories data exists or
+ * the item is a weapon (weapons reliably keep their frame in socket 0).
+ *
  * @param {object} item - Item to enrich
  * @param {object} itemDefs - DestinyInventoryItemDefinition lookup table
  * @returns {object} - Item with enrichedIntrinsicPerk
  */
 function enrichItemWithIntrinsicPerk(item, itemDefs) {
   if (!item.sockets?.socketEntries?.length) return item;
-  
-  const intrinsicSocket = item.sockets.socketEntries[0];
+
+  const socketIndex = findIntrinsicSocketIndex(item);
+  if (socketIndex === null) return item;
+
+  const intrinsicSocket = item.sockets.socketEntries[socketIndex];
   if (!intrinsicSocket?.singleInitialItemHash) return item;
-  
+
   const intrinsicItem = itemDefs[intrinsicSocket.singleInitialItemHash];
   if (!intrinsicItem) return item;
-  
+
   return {
     ...item,
     enrichedIntrinsicPerk: {
@@ -420,6 +381,32 @@ function enrichItemWithIntrinsicPerk(item, itemDefs) {
       description: intrinsicItem.displayProperties?.description || ''
     }
   };
+}
+
+/**
+ * Find the socket index of the intrinsic-traits socket for an item.
+ * Uses socketCategories when available; falls back to index 0 only for
+ * weapons (or when the item carries no socketCategories metadata at all,
+ * which keeps legacy/fixture behavior working).
+ * @param {object} item - Inventory item definition
+ * @returns {number|null} - Socket index or null when no intrinsic socket exists
+ */
+function findIntrinsicSocketIndex(item) {
+  const socketCategories = item.sockets?.socketCategories;
+  if (socketCategories?.length) {
+    const intrinsicCategory = socketCategories.find(
+      (cat) => cat.socketCategoryHash === SOCKET_CATEGORY_HASHES.INTRINSIC_TRAITS
+    );
+    if (intrinsicCategory?.socketIndexes?.length) {
+      return intrinsicCategory.socketIndexes[0];
+    }
+    // socketCategories present but no intrinsic category:
+    // only weapons may fall back to socket 0
+    const isWeapon = item.itemCategoryHashes?.includes(ITEM_CATEGORIES.WEAPON);
+    return isWeapon ? 0 : null;
+  }
+  // No socketCategories metadata — fall back to socket 0 (legacy behavior)
+  return 0;
 }
 
 /**
@@ -501,28 +488,69 @@ async function enrichItemsWithStatNames(items, client) {
 }
 
 /**
+ * Load every definition table needed for enrichment/transformation once and
+ * return them in a single context object. This avoids the previous pattern of
+ * calling enrichItems() 8 times where each call re-awaited 6 definition loads.
+ * @param {object} client - Bungie API client
+ * @returns {Promise<object>} - ctx with all definition tables and season info
+ */
+async function loadEnrichmentContext(client) {
+  console.log('Loading definitions for enrichment...');
+  const [statDefs, perkDefs, damageTypeDefs, itemDefs, energyTypeDefs, loreDefs, plugSetDefs, socketCategoryDefs] =
+    await Promise.all([
+      loadStatDefinitions(client),
+      loadPerkDefinitions(client),
+      loadDamageTypeDefinitions(client),
+      loadDefinitions(client, 'DestinyInventoryItemDefinition'),
+      loadEnergyTypeDefinitions(client),
+      loadLoreDefinitions(client),
+      loadPlugSetDefinitions(client),
+      loadSocketCategoryDefinitions(client),
+    ]);
+  await getCurrentSeasonHash(client);
+  return {
+    statDefs,
+    perkDefs,
+    damageTypeDefs,
+    itemDefs,
+    energyTypeDefs,
+    loreDefs,
+    plugSetDefs,
+    socketCategoryDefs,
+    season: {
+      hash: currentSeasonHash,
+      number: currentSeasonNumber,
+      name: currentSeasonName,
+    },
+  };
+}
+
+/**
+ * Enrich items using a pre-loaded definition context (no network access).
+ * @param {object[]} items - Items to enrich
+ * @param {object} ctx - Context from loadEnrichmentContext
+ * @returns {object[]} - Fully enriched items
+ */
+function enrichItemsWithContext(items, ctx) {
+  return items.map(item => {
+    let enriched = enrichItemWithStats(item, ctx.statDefs);
+    enriched = enrichItemWithPerks(enriched, ctx.perkDefs, ctx.damageTypeDefs);
+    enriched = enrichItemWithIntrinsicPerk(enriched, ctx.itemDefs);
+    enriched = enrichItemWithEnergyType(enriched, ctx.energyTypeDefs);
+    enriched = enrichItemWithLore(enriched, ctx.loreDefs);
+    return enriched;
+  });
+}
+
+/**
  * Enrich items with comprehensive data (stats, perks, damage types, intrinsic perks, energy types, lore)
  * @param {object[]} items - Items to enrich
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Fully enriched items
  */
 async function enrichItems(items, client) {
-  console.log('Loading definitions for enrichment...');
-  const statDefs = await loadStatDefinitions(client);
-  const perkDefs = await loadPerkDefinitions(client);
-  const damageTypeDefs = await loadDamageTypeDefinitions(client);
-  const itemDefs = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  const energyTypeDefs = await loadEnergyTypeDefinitions(client);
-  const loreDefs = await loadLoreDefinitions(client);
-  
-  return items.map(item => {
-    let enriched = enrichItemWithStats(item, statDefs);
-    enriched = enrichItemWithPerks(enriched, perkDefs, damageTypeDefs);
-    enriched = enrichItemWithIntrinsicPerk(enriched, itemDefs);
-    enriched = enrichItemWithEnergyType(enriched, energyTypeDefs);
-    enriched = enrichItemWithLore(enriched, loreDefs);
-    return enriched;
-  });
+  const ctx = await loadEnrichmentContext(client);
+  return enrichItemsWithContext(items, ctx);
 }
 
 /**
@@ -653,8 +681,9 @@ async function getArmor(client) {
 /**
  * Armor mod identifier patterns for the current universal mod system
  * Post-Lightfall, mods use these patterns in plugCategoryIdentifier
+ * (centralized in src/constants.js)
  */
-const ARMOR_MOD_IDENTIFIERS = ['v2', 'enhancements', 'armor_tier'];
+const { ARMOR_MOD_IDENTIFIERS } = require('./constants');
 
 /**
  * Gets all armor mods from the manifest
@@ -813,48 +842,64 @@ async function getArtifactMods(client) {
   
   // Filter to only usable items (not redacted, with names)
   // Allow non-equippable items since artifact mods are plugs and may not be marked as equippable
-  return filterUsableItems(allArtifactMods, true);
+  const usableArtifactMods = filterUsableItems(allArtifactMods, true);
+
+  // Filter to the current season using seasonHash. If nothing matches (e.g. the
+  // manifest doesn't stamp seasonHash on artifact plugs), fall back to all
+  // artifact mods and flag each row with isCurrentSeason so consumers can filter.
+  const seasonHash = await getCurrentSeasonHash(client);
+  const currentSeasonMods = filterByCurrentSeason(usableArtifactMods, seasonHash);
+  if (currentSeasonMods.length > 0) {
+    return currentSeasonMods.map(item => ({ ...item, isCurrentSeason: true }));
+  }
+  console.log('No artifact mods matched the current season; including all with isCurrentSeason flag');
+  return usableArtifactMods.map(item => ({
+    ...item,
+    isCurrentSeason: Boolean(item.seasonHash && item.seasonHash === seasonHash)
+  }));
 }
 
 /**
- * Gets champion mods (anti-barrier, overload, unstoppable)
- * Filters out redacted and non-equippable items
- * Note: Includes all champion mods without strict season filtering, as the Bungie API
- * may not consistently set seasonHash on all champion mods
+ * Gets champion mods (anti-barrier, overload, unstoppable).
+ *
+ * Matching is based on structured Bungie API fields rather than name/description
+ * substrings (which pulled in unrelated items):
+ * - item.breakerType > 0 (the item intrinsically stuns a champion type), OR
+ * - plugCategoryIdentifier contains 'artifact'/'champion' AND breakerTypeHash present.
+ * All matches must be plugs (item.plug present).
+ * A narrow name-prefix fallback ("anti-barrier"/"overload"/"unstoppable" prefixed
+ * mods that are armor-mod plugs) is kept for manifest versions where structured
+ * fields are missing.
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of champion mod definitions
  */
 async function getChampionMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
-  
+
   const allChampionMods = Object.values(items).filter(item => {
+    // Champion mods are always plugs
     if (!item.plug) return false;
-    if (!item.itemCategoryHashes || !item.itemCategoryHashes.includes(ITEM_CATEGORIES.ARMOR_MODS)) {
-      return false;
+    if (!item.displayProperties?.name) return false;
+
+    // Preferred: structured breaker type on the item itself
+    if (item.breakerType > 0) return true;
+
+    // Preferred: artifact/champion plug that grants a breaker type
+    const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
+    const isChampionPlugCategory = plugCat.includes('artifact') || plugCat.includes('champion');
+    if (isChampionPlugCategory && item.breakerTypeHash) return true;
+
+    // Fallback: name starts with a champion-stun prefix and it's an armor-mod plug
+    if (item.itemCategoryHashes?.includes(ITEM_CATEGORIES.ARMOR_MODS)) {
+      const name = item.displayProperties.name.toLowerCase();
+      return ['anti-barrier', 'overload', 'unstoppable'].some(prefix => name.startsWith(prefix));
     }
-    
-    const name = item.displayProperties?.name?.toLowerCase() || '';
-    const description = item.displayProperties?.description?.toLowerCase() || '';
-    
-    // Champion mods have specific prefixes or terms in name or description
-    // Use more specific patterns to avoid false positives
-    const championPatterns = [
-      'anti-barrier',
-      'overload',
-      'unstoppable',
-      'pierce barrier',
-      'disrupt overload',
-      'stagger unstoppable'
-    ];
-    
-    return championPatterns.some(pattern => 
-      name.includes(pattern) || description.includes(pattern)
-    );
+
+    return false;
   });
-  
+
   // Filter to only usable items (not redacted, with names)
-  // Allow non-equippable items since champion mods are plugs and may not be marked as equippable
-  // Note: Season filtering removed as it was too restrictive
+  // Allow non-equippable items since champion mods are plugs
   return filterUsableItems(allChampionMods, true);
 }
 
@@ -893,16 +938,17 @@ async function getAllBuildCraftingData(client) {
   const championMods = await getChampionMods(client);
   console.log(`Found ${championMods.length} champion mods`);
   
-  // Enrich all items with comprehensive data (stats, perks, damage types)
+  // Load all definitions once, then enrich every category with the shared context
   console.log('\nEnriching items with comprehensive definitions...');
-  const enrichedWeapons = await enrichItems(weapons, client);
-  const enrichedArmor = await enrichItems(armor, client);
-  const enrichedArmorMods = await enrichItems(armorMods, client);
-  const enrichedAspects = await enrichItems(subclassData.aspects, client);
-  const enrichedFragments = await enrichItems(subclassData.fragments, client);
-  const enrichedAbilities = await enrichItems(subclassData.abilities, client);
-  const enrichedArtifactMods = await enrichItems(artifactMods, client);
-  const enrichedChampionMods = await enrichItems(championMods, client);
+  const ctx = await loadEnrichmentContext(client);
+  const enrichedWeapons = enrichItemsWithContext(weapons, ctx);
+  const enrichedArmor = enrichItemsWithContext(armor, ctx);
+  const enrichedArmorMods = enrichItemsWithContext(armorMods, ctx);
+  const enrichedAspects = enrichItemsWithContext(subclassData.aspects, ctx);
+  const enrichedFragments = enrichItemsWithContext(subclassData.fragments, ctx);
+  const enrichedAbilities = enrichItemsWithContext(subclassData.abilities, ctx);
+  const enrichedArtifactMods = enrichItemsWithContext(artifactMods, ctx);
+  const enrichedChampionMods = enrichItemsWithContext(championMods, ctx);
   console.log('Enrichment complete');
   
   // Add enemy weakness reference data
@@ -923,7 +969,9 @@ async function getAllBuildCraftingData(client) {
     damageTypes,
     artifactMods: enrichedArtifactMods,
     championMods: enrichedChampionMods,
-    enemyWeaknesses
+    enemyWeaknesses,
+    // Shared definition context (definition tables + season info) for exporters
+    ctx
   };
 }
 
@@ -969,6 +1017,9 @@ module.exports = {
   enrichItemWithLore,
   enrichItemsWithStatNames,
   enrichItems,
+  loadEnrichmentContext,
+  enrichItemsWithContext,
+  findIntrinsicSocketIndex,
   isArmor2_0,
   getWeapons,
   getArmor,

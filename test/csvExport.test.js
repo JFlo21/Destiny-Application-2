@@ -301,7 +301,8 @@ test('transformItemForCSV extracts subclass properties', () => {
   const transformed = transformItemForCSV(item, 'subclasses');
   assertEqual(transformed.name, 'Void 3.0');
   assertEqual(transformed.classType, 'Warlock');
-  assertEqual(transformed.damageType, 3);
+  assertEqual(transformed.damageTypeEnum, 3);
+  assertEqual(transformed.damageType, 'Solar');
   assert(transformed.itemCategoryHashes.includes('1403'), 'Should include category hashes');
 });
 

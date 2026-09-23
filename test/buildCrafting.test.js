@@ -474,7 +474,7 @@ async function runIntegrationTests() {
   
   try {
     await fetch('https://www.bungie.net', { method: 'HEAD', signal: controller.signal });
-  } catch (error) {
+  } catch {
     console.log('Skipping integration tests - cannot reach Bungie API (network unavailable)');
     return;
   } finally {

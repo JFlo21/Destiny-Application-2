@@ -196,7 +196,7 @@ function exportEnemyWeaknessData() {
   }
   
   // Add champion information
-  for (const [type, data] of Object.entries(CHAMPION_TYPES)) {
+  for (const data of Object.values(CHAMPION_TYPES)) {
     entries.push({
       faction: 'All',
       enemyType: data.name,

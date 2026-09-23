@@ -163,7 +163,7 @@ function transformItemForCSV(item, category, statDefs = null) {
   
   // Use enriched stats if available (with resolved stat names)
   if (item.enrichedStats) {
-    for (const [statHash, enrichedStat] of Object.entries(item.enrichedStats)) {
+    for (const enrichedStat of Object.values(item.enrichedStats)) {
       const statName = enrichedStat.name;
       transformed[statName] = enrichedStat.value;
       // Add max value for reference

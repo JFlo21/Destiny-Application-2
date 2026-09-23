@@ -861,7 +861,7 @@ async function getArtifactMods(client) {
 }
 
 /**
- * Gets champion mods (anti-barrier, overload, unstoppable).
+ * Predicate for champion mods (anti-barrier, overload, unstoppable).
  *
  * Matching is based on structured Bungie API fields rather than name/description
  * substrings (which pulled in unrelated items):
@@ -871,33 +871,41 @@ async function getArtifactMods(client) {
  * A narrow name-prefix fallback ("anti-barrier"/"overload"/"unstoppable" prefixed
  * mods that are armor-mod plugs) is kept for manifest versions where structured
  * fields are missing.
+ * @param {object} item - Inventory item definition
+ * @returns {boolean} - True if the item is a champion mod
+ */
+function isChampionMod(item) {
+  // Champion mods are always plugs
+  if (!item.plug) return false;
+  if (!item.displayProperties?.name) return false;
+
+  // Preferred: structured breaker type on the item itself
+  if (item.breakerType > 0) return true;
+
+  // Preferred: artifact/champion plug that grants a breaker type
+  const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
+  const isChampionPlugCategory = plugCat.includes('artifact') || plugCat.includes('champion');
+  if (isChampionPlugCategory && item.breakerTypeHash) return true;
+
+  // Fallback: name starts with a champion-stun prefix and it's an armor-mod plug
+  if (item.itemCategoryHashes?.includes(ITEM_CATEGORIES.ARMOR_MODS)) {
+    const name = item.displayProperties.name.toLowerCase();
+    return ['anti-barrier', 'overload', 'unstoppable'].some(prefix => name.startsWith(prefix));
+  }
+
+  return false;
+}
+
+/**
+ * Gets champion mods (anti-barrier, overload, unstoppable).
+ * See isChampionMod for matching rules.
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of champion mod definitions
  */
 async function getChampionMods(client) {
   const items = await loadDefinitions(client, 'DestinyInventoryItemDefinition');
 
-  const allChampionMods = Object.values(items).filter(item => {
-    // Champion mods are always plugs
-    if (!item.plug) return false;
-    if (!item.displayProperties?.name) return false;
-
-    // Preferred: structured breaker type on the item itself
-    if (item.breakerType > 0) return true;
-
-    // Preferred: artifact/champion plug that grants a breaker type
-    const plugCat = item.plug.plugCategoryIdentifier?.toLowerCase() || '';
-    const isChampionPlugCategory = plugCat.includes('artifact') || plugCat.includes('champion');
-    if (isChampionPlugCategory && item.breakerTypeHash) return true;
-
-    // Fallback: name starts with a champion-stun prefix and it's an armor-mod plug
-    if (item.itemCategoryHashes?.includes(ITEM_CATEGORIES.ARMOR_MODS)) {
-      const name = item.displayProperties.name.toLowerCase();
-      return ['anti-barrier', 'overload', 'unstoppable'].some(prefix => name.startsWith(prefix));
-    }
-
-    return false;
-  });
+  const allChampionMods = Object.values(items).filter(isChampionMod);
 
   // Filter to only usable items (not redacted, with names)
   // Allow non-equippable items since champion mods are plugs
@@ -910,8 +918,8 @@ async function getChampionMods(client) {
  * @returns {Promise<object>} - Object containing all build crafting data
  */
 async function getAllBuildCraftingData(client) {
-  // Get season name for logging
-  const seasonName = await getCurrentSeasonName(client);
+  // Prime the season cache (name/number reused by enrichment context)
+  await getCurrentSeasonName(client);
   
   console.log(`\n=== Fetching Build Crafting Data ===\n`);
   
@@ -1021,6 +1029,7 @@ module.exports = {
   loadEnrichmentContext,
   enrichItemsWithContext,
   findIntrinsicSocketIndex,
+  isChampionMod,
   isArmor2_0,
   getWeapons,
   getArmor,

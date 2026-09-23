@@ -1,5 +1,3 @@
-const fs = require('fs');
-const path = require('path');
 const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName, AMMO_TYPES, ENERGY_TYPE_NAMES, WEAPON_SLOT_BUCKETS, BREAKER_TYPES, DAMAGE_TYPE_NAMES, STAT_DESCRIPTIONS, extractElementFromPlugCategory, generateStatReference } = require('../src/csvExport');
 
 /**

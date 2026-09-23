@@ -33,7 +33,7 @@ const { loadCuratedData, matchVerbsInText } = require('./curated');
 const { writeTableSheet, resetTableNames } = require('./excel/tableWriter');
 const { addCoverSheet } = require('./excel/coverSheet');
 const { addBuildPlanner, PLANNER_STATS } = require('./excel/buildPlanner');
-const { CLASS_TYPES } = require('./constants');
+const { CLASS_TYPES, WEAPON_SLOT_BUCKETS } = require('./constants');
 const theme = require('./excel/theme');
 
 /**
@@ -300,6 +300,18 @@ function addLookupsSheet(workbook, buildData) {
       ),
     ].sort();
 
+  // Per-slot weapon lists so the planner can't put a Power weapon in the
+  // Kinetic dropdown (slot is derived from the inventory bucket hash)
+  const bySlot = (slot) =>
+    [
+      ...new Set(
+        (buildData.weapons || [])
+          .filter((item) => WEAPON_SLOT_BUCKETS[item.inventory?.bucketTypeHash] === slot)
+          .map((item) => item.displayProperties?.name || '')
+          .filter(Boolean)
+      ),
+    ].sort();
+
   const lists = [
     { header: 'Supers', rangeName: 'SuperNames', values: byPlugCat('super') },
     { header: 'Grenades', rangeName: 'GrenadeNames', values: byPlugCat('grenade') },
@@ -312,6 +324,9 @@ function addLookupsSheet(workbook, buildData) {
       rangeName: 'ElementNames',
       values: ['Arc', 'Solar', 'Void', 'Stasis', 'Strand', 'Prismatic', 'Kinetic'],
     },
+    { header: 'Kinetic Weapons', rangeName: 'KineticWeaponNames', values: bySlot('Kinetic'), alwaysDefine: true },
+    { header: 'Energy Weapons', rangeName: 'EnergyWeaponNames', values: bySlot('Energy'), alwaysDefine: true },
+    { header: 'Power Weapons', rangeName: 'PowerWeaponNames', values: bySlot('Power'), alwaysDefine: true },
   ];
 
   lists.forEach((list, i) => {
@@ -324,10 +339,12 @@ function addLookupsSheet(workbook, buildData) {
     list.values.forEach((value, r) => {
       sheet.getCell(r + 2, column).value = value;
     });
-    if (list.values.length > 0) {
+    // Ranges referenced by planner formulas/validations must always exist,
+    // even when empty (they cover a single blank cell in that case)
+    if (list.values.length > 0 || list.alwaysDefine) {
       const letter = String.fromCharCode(64 + column);
       workbook.definedNames.add(
-        `'Lookups'!$${letter}$2:$${letter}$${list.values.length + 1}`,
+        `'Lookups'!$${letter}$2:$${letter}$${Math.max(list.values.length + 1, 2)}`,
         list.rangeName
       );
     }

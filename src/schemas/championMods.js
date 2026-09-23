@@ -4,6 +4,7 @@ const { col, baseIdentityColumns, baseMetadataColumns, makeTransform } = require
 const columns = [
   ...baseIdentityColumns(),
   col('breakerType', 'Breaker Type', 24),
+  col('isCurrentSeason', 'Current Season', 14, { type: 'boolean' }),
   col('energyCost', 'Energy Cost', 12, { type: 'number', numFmt: '0' }),
   col('plugCategoryIdentifier', 'Plug Category', 32),
   ...baseMetadataColumns(),

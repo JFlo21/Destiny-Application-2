@@ -99,6 +99,9 @@ test('named ranges exist for planner lookups', () => {
     'FragMatrix_Mobility',
     'ExoticArmorNames',
     'SuperNames',
+    'KineticWeaponNames',
+    'EnergyWeaponNames',
+    'PowerWeaponNames',
   ]) {
     assert.ok(names.has(expected), `missing named range ${expected}`);
   }
@@ -116,4 +119,42 @@ test('cells are typed: hash is numeric, booleans real', () => {
   const hashCol = headers.indexOf('Hash');
   assert.ok(hashCol > 0);
   assert.strictEqual(typeof weapons.getRow(2).getCell(hashCol).value, 'number');
+});
+
+test('weapon dropdowns are restricted to their slot lists', () => {
+  const planner = workbook.getWorksheet('Build Planner');
+  const model = planner.dataValidations.model;
+  const formulas = Object.values(model)
+    .filter((v) => v.type === 'list')
+    .flatMap((v) => v.formulae || []);
+  for (const range of ['KineticWeaponNames', 'EnergyWeaponNames', 'PowerWeaponNames']) {
+    assert.ok(
+      formulas.some((f) => String(f).includes(range)),
+      `planner should use ${range} dropdown`
+    );
+  }
+  // The unrestricted full weapon list must not be used as a dropdown source
+  assert.ok(
+    !formulas.some((f) => String(f) === '=WeaponNames'),
+    'no dropdown should offer all weapons regardless of slot'
+  );
+});
+
+test('Lookups slot lists only contain weapons from that slot', () => {
+  const lookups = workbook.getWorksheet('Lookups');
+  const headers = lookups.getRow(1).values;
+  const colOf = (h) => headers.indexOf(h);
+  const listAt = (colIdx) => {
+    const values = [];
+    lookups.eachRow((row, rowNumber) => {
+      if (rowNumber === 1) return;
+      const v = row.getCell(colIdx).value;
+      if (v) values.push(v);
+    });
+    return values;
+  };
+  // Fixture: Test Auto Rifle is Kinetic, Test Sword is Power, no Energy weapons
+  assert.deepStrictEqual(listAt(colOf('Kinetic Weapons')), ['Test Auto Rifle']);
+  assert.deepStrictEqual(listAt(colOf('Energy Weapons')), []);
+  assert.deepStrictEqual(listAt(colOf('Power Weapons')), ['Test Sword']);
 });

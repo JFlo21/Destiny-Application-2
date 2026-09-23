@@ -899,6 +899,11 @@ function isChampionMod(item) {
 /**
  * Gets champion mods (anti-barrier, overload, unstoppable).
  * See isChampionMod for matching rules.
+ *
+ * Like artifact mods, champion mods rotate with the seasonal artifact, so the
+ * result is filtered to the current season via seasonHash. If nothing matches
+ * (manifests don't always stamp seasonHash on plugs), fall back to all
+ * champion mods with an isCurrentSeason flag so consumers can filter.
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of champion mod definitions
  */
@@ -909,7 +914,18 @@ async function getChampionMods(client) {
 
   // Filter to only usable items (not redacted, with names)
   // Allow non-equippable items since champion mods are plugs
-  return filterUsableItems(allChampionMods, true);
+  const usableChampionMods = filterUsableItems(allChampionMods, true);
+
+  const seasonHash = await getCurrentSeasonHash(client);
+  const currentSeasonMods = filterByCurrentSeason(usableChampionMods, seasonHash);
+  if (currentSeasonMods.length > 0) {
+    return currentSeasonMods.map(item => ({ ...item, isCurrentSeason: true }));
+  }
+  console.log('No champion mods matched the current season; including all with isCurrentSeason flag');
+  return usableChampionMods.map(item => ({
+    ...item,
+    isCurrentSeason: Boolean(item.seasonHash && item.seasonHash === seasonHash)
+  }));
 }
 
 /**

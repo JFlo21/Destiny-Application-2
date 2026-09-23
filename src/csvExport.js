@@ -341,8 +341,11 @@ function transformItemForCSV(item, category, statDefs = null) {
       transformed.breakerType = resolveEnum(item.breakerType, BREAKER_TYPES);
     }
 
-    // Artifact mods carry an isCurrentSeason flag from getArtifactMods
-    if (category === 'artifactMods' && item.isCurrentSeason !== undefined) {
+    // Artifact and champion mods carry an isCurrentSeason flag from their getters
+    if (
+      (category === 'artifactMods' || category === 'championMods') &&
+      item.isCurrentSeason !== undefined
+    ) {
       transformed.isCurrentSeason = Boolean(item.isCurrentSeason);
     }
     

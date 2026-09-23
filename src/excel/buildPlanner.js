@@ -172,13 +172,15 @@ function addBuildPlanner(workbook, { championCounters = [] } = {}) {
   sheet.getCell(exoticRow, 8).alignment = { wrapText: true, vertical: 'top' };
 
   const weaponRows = [
-    ['Kinetic Weapon', kineticRow],
-    ['Energy Weapon', energyRow],
-    ['Power Weapon', powerRow],
+    ['Kinetic Weapon', kineticRow, 'KineticWeaponNames'],
+    ['Energy Weapon', energyRow, 'EnergyWeaponNames'],
+    ['Power Weapon', powerRow, 'PowerWeaponNames'],
   ];
-  for (const [text, row] of weaponRows) {
+  for (const [text, row, slotRange] of weaponRows) {
     label(sheet.getCell(row, 1), text);
-    input(sheet.getCell(row, 2), '=WeaponNames');
+    // Dropdown restricted to weapons that actually fit this slot; lookups
+    // still resolve against the full Weapons sheet columns
+    input(sheet.getCell(row, 2), `=${slotRange}`);
     sheet.getCell(row, 3).value = {
       formula: `=${xl(`B${row}`, 'WeaponNames', 'WeaponElements')}`,
     };

@@ -1,0 +1,24 @@
+{
+  "$comment": "Armor stat tier reference (tiers 0-10, 10 points per tier). Cooldown/DR values are community-sourced approximations and marked verified:false until re-measured against the live game.",
+  "version": 1,
+  "entries": [
+    { "stat": "Mobility", "tier": 0, "value": 0, "note": "Base walk/strafe speed; slowest Hunter dodge cooldown (~29s)", "verified": false, "source": "Curated" },
+    { "stat": "Mobility", "tier": 5, "value": 50, "note": "+20% walk/strafe speed; Hunter dodge ~19s", "verified": false, "source": "Curated" },
+    { "stat": "Mobility", "tier": 10, "value": 100, "note": "+40% walk/strafe speed; Hunter dodge ~11s (fastest)", "verified": false, "source": "Curated" },
+    { "stat": "Resilience", "tier": 0, "value": 0, "note": "0% PvE damage resistance; Titan barricade ~52s", "verified": false, "source": "Curated" },
+    { "stat": "Resilience", "tier": 5, "value": 50, "note": "~15% PvE damage resistance", "verified": false, "source": "Curated" },
+    { "stat": "Resilience", "tier": 10, "value": 100, "note": "~30% PvE damage resistance; Titan barricade ~37s; top survivability tier", "verified": false, "source": "Curated" },
+    { "stat": "Recovery", "tier": 0, "value": 0, "note": "Slowest health regen start/speed; Warlock rift ~1m52s", "verified": false, "source": "Curated" },
+    { "stat": "Recovery", "tier": 5, "value": 50, "note": "Noticeably faster regen; rift ~1m26s", "verified": false, "source": "Curated" },
+    { "stat": "Recovery", "tier": 10, "value": 100, "note": "Fastest regen; Warlock rift ~55s", "verified": false, "source": "Curated" },
+    { "stat": "Discipline", "tier": 0, "value": 0, "note": "Longest grenade cooldown (~2m30s for mid-tier grenades)", "verified": false, "source": "Curated" },
+    { "stat": "Discipline", "tier": 5, "value": 50, "note": "~1m31s grenade cooldown (mid-tier grenades)", "verified": false, "source": "Curated" },
+    { "stat": "Discipline", "tier": 10, "value": 100, "note": "~1m05s grenade cooldown (mid-tier grenades)", "verified": false, "source": "Curated" },
+    { "stat": "Intellect", "tier": 0, "value": 0, "note": "Longest super cooldown; passive gain dominates post-Lightfall", "verified": false, "source": "Curated" },
+    { "stat": "Intellect", "tier": 5, "value": 50, "note": "Moderate reduction to passive super gain time", "verified": false, "source": "Curated" },
+    { "stat": "Intellect", "tier": 10, "value": 100, "note": "Fastest passive super gain; lower value than pre-Lightfall", "verified": false, "source": "Curated" },
+    { "stat": "Strength", "tier": 0, "value": 0, "note": "Longest melee cooldown (~2m00s for mid-tier melees)", "verified": false, "source": "Curated" },
+    { "stat": "Strength", "tier": 5, "value": 50, "note": "~1m13s melee cooldown (mid-tier melees)", "verified": false, "source": "Curated" },
+    { "stat": "Strength", "tier": 10, "value": 100, "note": "~52s melee cooldown (mid-tier melees)", "verified": false, "source": "Curated" }
+  ]
+}

@@ -2,7 +2,9 @@ node_modules/
 .env
 *.log
 .DS_Store
-data/
+# Export output (but keep versioned curated data)
+data/*
+!data/curated/
 destiny-data/
 *credentials.json
 service-account*.json

@@ -1,0 +1,11 @@
+{
+  "$comment": "Starter table of buff/debuff stacking rules for damage-rotation planning. Values are community-measured and may drift between patches.",
+  "version": 1,
+  "entries": [
+    { "category": "Empowering buff", "examples": "Well of Radiance, Radiant, Noble Rounds, Empowering Rift", "stacking": "Only the strongest empowering buff applies; they do not stack with each other.", "notes": "Radiant and Well of Radiance share the same 25%/10% bucket in PvE.", "source": "Curated" },
+    { "category": "Weapon damage perk", "examples": "Frenzy, Kill Clip, Vorpal Weapon, Bait and Switch", "stacking": "Weapon perks stack multiplicatively with empowering buffs and global debuffs; most same-slot perks cannot be active together.", "notes": "Two damage perks on one weapon (e.g. crafted enhanced combos) multiply.", "source": "Curated" },
+    { "category": "Global debuff", "examples": "Weaken, Tether, Divinity, Tractor Cannon, Felwinter's Helm", "stacking": "Only the strongest debuff on a target applies; debuffs do not stack with each other.", "notes": "Standard weaken is 15%, Tether/Tractor 30% in PvE.", "source": "Curated" },
+    { "category": "Surge mod (leg armor)", "examples": "Solar Surge, Kinetic Surge x3", "stacking": "Up to 3 stacks: ~10%/17%/22% for matching damage type in PvE; stacks multiplicatively with buffs/debuffs.", "notes": "Only affects weapons matching the surge element.", "source": "Curated" },
+    { "category": "Weapon boost (artifact/seasonal)", "examples": "Artifact surge boosts, Font mods", "stacking": "Generally additive with surge mods within the same bucket; multiplicative with other buckets.", "notes": "Check current artifact column for season-specific rules.", "source": "Curated" }
+  ]
+}

@@ -76,15 +76,39 @@ function orderStatKeys(statKeys, canonicalOrder) {
 }
 
 /**
+ * Legacy/duplicate keys kept in CSV output for backwards compatibility but
+ * omitted from Excel columns (spec Part 1 item 6: keep damageType +
+ * damageTypeEnum, drop the duplicated name/enum variants and raw hashes).
+ */
+const EXCEL_EXCLUDED_KEYS = new Set([
+  'damageTypeName',
+  'defaultDamageType',
+  'damageTypeDescription',
+  'damageTypeHashes',
+  'tierTypeHash',
+  'itemTypeAndTierDisplayName',
+  'itemSubType',
+  'intrinsicPerkHash',
+  'traitIds',
+  'displaySource',
+  'collectibleHash',
+  'loreHash',
+]);
+
+/**
  * Build the final ordered column list for a set of transformed rows.
  * Fixed schema columns come first, then the union of stat keys in canonical
  * order, then any remaining unknown keys (alphabetical). No key is dropped.
  *
- * @param {object} schema - Schema with `columns` and optional `statOrder`
+ * @param {object} schema - Schema with `columns` and optional `statOrder` / `exclude`
  * @param {object[]} rows - Transformed row objects
  * @returns {object[]} - Ordered array of column definitions
  */
 function buildColumns(schema, rows) {
+  // With no rows there is nothing to derive: keep the declared schema columns
+  if (!rows || rows.length === 0) return [...schema.columns];
+
+  const excluded = new Set([...EXCEL_EXCLUDED_KEYS, ...(schema.exclude || [])]);
   const fixedKeys = new Set(schema.columns.map((c) => c.key));
 
   // Union of every key present in any row
@@ -109,7 +133,10 @@ function buildColumns(schema, rows) {
   const statKeys = orderStatKeys(dynamicKeys.filter(isStatKey), canonicalOrder)
     // keep "<Stat>" followed directly by "<Stat>_Max"
     .flatMap((k) => (dynamicKeys.includes(`${k}_Max`) ? [k, `${k}_Max`] : [k]));
-  const otherKeys = dynamicKeys.filter((k) => !isStatKey(k) && !statKeys.includes(k)).sort();
+  const otherKeys = dynamicKeys
+    .filter((k) => !isStatKey(k) && !statKeys.includes(k))
+    .filter((k) => k !== 'undefined' && !excluded.has(k))
+    .sort();
 
   const statCols = statKeys.map((k) =>
     col(k, k, Math.max(9, Math.min(k.length + 2, 24)), { type: 'number', numFmt: '0', isStat: !k.endsWith('_Max') })

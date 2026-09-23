@@ -522,6 +522,7 @@ async function loadEnrichmentContext(client) {
       number: currentSeasonNumber,
       name: currentSeasonName,
     },
+    manifestVersion: manifestCache?.version || '',
   };
 }
 

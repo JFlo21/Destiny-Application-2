@@ -617,6 +617,95 @@ function filterByCurrentSeason(items, seasonHash) {
 }
 
 /**
+ * Collects the plug item hashes from an artifact definition's tiers.
+ * @param {object} artifactDef - DestinyArtifactDefinition entry
+ * @returns {Set<number>} - Item hashes appearing on the artifact
+ */
+function collectArtifactPlugHashes(artifactDef) {
+  const hashes = new Set();
+  for (const tier of artifactDef?.tiers || []) {
+    for (const tierItem of tier.items || []) {
+      if (tierItem.itemHash !== undefined) hashes.add(tierItem.itemHash);
+    }
+  }
+  return hashes;
+}
+
+/**
+ * Pure current-season selection for seasonal mods (artifact/champion).
+ *
+ * Selection order (first non-empty result wins):
+ * 1. Items whose seasonHash matches the current season.
+ * 2. Items that appear on the current seasonal artifact — manifest plugs
+ *    frequently lack a seasonHash, so artifact membership is the
+ *    authoritative signal.
+ * 3. Last resort: all items, each flagged isCurrentSeason=false so consumers
+ *    can see nothing could be verified as current.
+ * @param {object[]} items - Usable candidate mods
+ * @param {number|null} seasonHash - Current season hash
+ * @param {Set<number>} artifactPlugHashes - Hashes on the current artifact
+ * @param {string} label - Category label for logging
+ * @returns {object[]} - Mods flagged with isCurrentSeason
+ */
+function selectCurrentSeasonMods(items, seasonHash, artifactPlugHashes, label = 'mods') {
+  const bySeasonHash = filterByCurrentSeason(items, seasonHash);
+  if (bySeasonHash.length > 0) {
+    return bySeasonHash.map(item => ({ ...item, isCurrentSeason: true }));
+  }
+
+  if (artifactPlugHashes && artifactPlugHashes.size > 0) {
+    const onCurrentArtifact = items.filter(item => artifactPlugHashes.has(item.hash));
+    if (onCurrentArtifact.length > 0) {
+      console.log(`Filtered ${label} to ${onCurrentArtifact.length} plugs on the current seasonal artifact`);
+      return onCurrentArtifact.map(item => ({ ...item, isCurrentSeason: true }));
+    }
+  }
+
+  console.log(`No ${label} matched the current season; including all with isCurrentSeason=false flag`);
+  return items.map(item => ({ ...item, isCurrentSeason: false }));
+}
+
+/**
+ * Gets the set of plug item hashes on the CURRENT seasonal artifact.
+ *
+ * This is the authoritative source for "current season" artifact/champion
+ * mods: DestinySeasonDefinition.artifactItemHash points at the season's
+ * artifact, and DestinyArtifactDefinition.tiers[].items[].itemHash lists
+ * exactly the perks unlockable this season. Manifest plugs frequently lack a
+ * seasonHash, so this lookup catches what seasonHash filtering misses.
+ * @param {object} client - Bungie API client
+ * @returns {Promise<Set<number>>} - Item hashes on the current artifact (empty if unresolvable)
+ */
+async function getCurrentArtifactPlugHashes(client) {
+  try {
+    const seasonHash = await getCurrentSeasonHash(client);
+    if (!seasonHash) return new Set();
+    const seasonDefs = await loadSeasonDefinitions(client);
+    const artifactItemHash = seasonDefs?.[seasonHash]?.artifactItemHash;
+    if (!artifactItemHash) return new Set();
+    const artifactDefs = await loadDefinitions(client, 'DestinyArtifactDefinition');
+    return collectArtifactPlugHashes(artifactDefs?.[artifactItemHash]);
+  } catch (error) {
+    console.log(`Could not resolve current artifact plugs: ${error.message}`);
+    return new Set();
+  }
+}
+
+/**
+ * Filters seasonal mods (artifact/champion) to the current season.
+ * See selectCurrentSeasonMods for the selection order.
+ * @param {object} client - Bungie API client
+ * @param {object[]} items - Usable candidate mods
+ * @param {string} label - Category label for logging
+ * @returns {Promise<object[]>} - Mods flagged with isCurrentSeason
+ */
+async function filterModsToCurrentSeason(client, items, label) {
+  const seasonHash = await getCurrentSeasonHash(client);
+  const artifactPlugHashes = await getCurrentArtifactPlugHashes(client);
+  return selectCurrentSeasonMods(items, seasonHash, artifactPlugHashes, label);
+}
+
+/**
  * Gets all weapons from the manifest
  * Filters out redacted and non-equippable items to ensure only current, usable weapons
  * @param {object} client - Bungie API client
@@ -845,19 +934,9 @@ async function getArtifactMods(client) {
   // Allow non-equippable items since artifact mods are plugs and may not be marked as equippable
   const usableArtifactMods = filterUsableItems(allArtifactMods, true);
 
-  // Filter to the current season using seasonHash. If nothing matches (e.g. the
-  // manifest doesn't stamp seasonHash on artifact plugs), fall back to all
-  // artifact mods and flag each row with isCurrentSeason so consumers can filter.
-  const seasonHash = await getCurrentSeasonHash(client);
-  const currentSeasonMods = filterByCurrentSeason(usableArtifactMods, seasonHash);
-  if (currentSeasonMods.length > 0) {
-    return currentSeasonMods.map(item => ({ ...item, isCurrentSeason: true }));
-  }
-  console.log('No artifact mods matched the current season; including all with isCurrentSeason flag');
-  return usableArtifactMods.map(item => ({
-    ...item,
-    isCurrentSeason: Boolean(item.seasonHash && item.seasonHash === seasonHash)
-  }));
+  // Restrict to the current season: seasonHash match first, then membership on
+  // the current seasonal artifact (authoritative), then a flagged last resort.
+  return filterModsToCurrentSeason(client, usableArtifactMods, 'artifact mods');
 }
 
 /**
@@ -901,9 +980,9 @@ function isChampionMod(item) {
  * See isChampionMod for matching rules.
  *
  * Like artifact mods, champion mods rotate with the seasonal artifact, so the
- * result is filtered to the current season via seasonHash. If nothing matches
- * (manifests don't always stamp seasonHash on plugs), fall back to all
- * champion mods with an isCurrentSeason flag so consumers can filter.
+ * result is filtered to the current season: seasonHash match first, then
+ * membership on the current seasonal artifact, then a flagged last resort
+ * (see filterModsToCurrentSeason).
  * @param {object} client - Bungie API client
  * @returns {Promise<object[]>} - Array of champion mod definitions
  */
@@ -916,16 +995,7 @@ async function getChampionMods(client) {
   // Allow non-equippable items since champion mods are plugs
   const usableChampionMods = filterUsableItems(allChampionMods, true);
 
-  const seasonHash = await getCurrentSeasonHash(client);
-  const currentSeasonMods = filterByCurrentSeason(usableChampionMods, seasonHash);
-  if (currentSeasonMods.length > 0) {
-    return currentSeasonMods.map(item => ({ ...item, isCurrentSeason: true }));
-  }
-  console.log('No champion mods matched the current season; including all with isCurrentSeason flag');
-  return usableChampionMods.map(item => ({
-    ...item,
-    isCurrentSeason: Boolean(item.seasonHash && item.seasonHash === seasonHash)
-  }));
+  return filterModsToCurrentSeason(client, usableChampionMods, 'champion mods');
 }
 
 /**
@@ -1034,6 +1104,10 @@ module.exports = {
   getCurrentSeasonNumber,
   getCurrentSeasonName,
   filterByCurrentSeason,
+  getCurrentArtifactPlugHashes,
+  collectArtifactPlugHashes,
+  selectCurrentSeasonMods,
+  filterModsToCurrentSeason,
   filterUsableItems,
   enrichItemWithStats,
   enrichItemWithPerks,

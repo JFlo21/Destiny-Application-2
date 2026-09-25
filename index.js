@@ -1,5 +1,5 @@
 const { createBungieClient } = require('./src/bungieClient');
-const { getAllBuildCraftingData, getWeapons, getArmor, getArmorMods, getAspects, getFragments } = require('./src/buildCrafting');
+const { getAllBuildCraftingData } = require('./src/buildCrafting');
 
 /**
  * Main function to demonstrate fetching build crafting data from Bungie API

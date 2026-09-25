@@ -1,5 +1,3 @@
-const fs = require('fs');
-const path = require('path');
 const { transformItemForCSV, transformItemsForCSV, STAT_HASHES, resolveStatName, AMMO_TYPES, ENERGY_TYPE_NAMES, WEAPON_SLOT_BUCKETS, BREAKER_TYPES, DAMAGE_TYPE_NAMES, STAT_DESCRIPTIONS, extractElementFromPlugCategory, generateStatReference } = require('../src/csvExport');
 
 /**
@@ -301,7 +299,8 @@ test('transformItemForCSV extracts subclass properties', () => {
   const transformed = transformItemForCSV(item, 'subclasses');
   assertEqual(transformed.name, 'Void 3.0');
   assertEqual(transformed.classType, 'Warlock');
-  assertEqual(transformed.damageType, 3);
+  assertEqual(transformed.damageTypeEnum, 3);
+  assertEqual(transformed.damageType, 'Solar');
   assert(transformed.itemCategoryHashes.includes('1403'), 'Should include category hashes');
 });
 

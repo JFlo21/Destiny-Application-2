@@ -35,6 +35,10 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
   }
   
   try {
+    // Honor --no-cache: disable the on-disk manifest cache
+    const { setCacheEnabled } = require('./manifest');
+    setCacheEnabled(options.cache !== false);
+
     const client = createBungieClient(apiKey);
     const buildData = await getAllBuildCraftingData(client);
     
@@ -81,11 +85,15 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
       await exportAllToSeparateExcelFiles(buildData, outputDir, statDefs);
     }
     
-    // Export to master Excel file if requested
+    // Export to master Excel file (compendium workbook) if requested
     if (options.excelMaster) {
-      console.log('\n=== Exporting to Master Excel File ===\n');
-      const masterFilename = path.join(outputDir, 'destiny2-build-data-master.xlsx');
-      await exportAllToExcel(buildData, masterFilename, statDefs);
+      console.log('\n=== Exporting to Compendium Excel Workbook ===\n');
+      const compendiumFilename = path.join(outputDir, 'destiny2-buildcraft-compendium.xlsx');
+      await exportAllToExcel(buildData, compendiumFilename, statDefs);
+      // Keep the old filename as a copy for backwards compatibility
+      const legacyFilename = path.join(outputDir, 'destiny2-build-data-master.xlsx');
+      fs.copyFileSync(compendiumFilename, legacyFilename);
+      console.log(`Copied compendium to legacy filename: ${legacyFilename}`);
     }
     
     // Export to Google Sheets if requested
@@ -166,82 +174,80 @@ async function exportBuildCraftingData(outputDir = './data', options = { json: t
 
 // Run if called directly
 if (require.main === module) {
-  // Parse command line options
-  const args = process.argv.slice(2);
-  const options = { json: true, csv: true, excel: false, excelMaster: false, googleSheets: false };
-  
-  // Check for format flags
-  if (args.includes('--json-only')) {
-    options.json = true;
-    options.csv = false;
-    options.excel = false;
-    options.excelMaster = false;
-    options.googleSheets = false;
-  } else if (args.includes('--csv-only')) {
-    options.json = false;
-    options.csv = true;
-    options.excel = false;
-    options.excelMaster = false;
-    options.googleSheets = false;
-  } else if (args.includes('--excel-only')) {
-    options.json = false;
-    options.csv = false;
-    options.excel = true;
-    options.excelMaster = false;
-    options.googleSheets = false;
-  } else if (args.includes('--excel-master')) {
-    options.json = false;
-    options.csv = false;
-    options.excel = false;
-    options.excelMaster = true;
-    options.googleSheets = false;
-  } else if (args.includes('--google-sheets')) {
-    options.json = false;
-    options.csv = false;
-    options.excel = false;
-    options.excelMaster = false;
-    options.googleSheets = true;
-  } else {
-    // Default: export to JSON and CSV, add other formats if specific flags are present
-    if (args.includes('--excel')) {
-      options.excel = true;
-    }
-    if (args.includes('--excel-master')) {
-      options.excelMaster = true;
-    }
-    if (args.includes('--google-sheets')) {
-      options.googleSheets = true;
-    }
-  }
-  
-  // Check for Google Sheets credentials path
-  const credentialsIndex = args.indexOf('--google-sheets-credentials');
-  if (credentialsIndex !== -1 && args[credentialsIndex + 1]) {
-    options.googleSheetsCredentials = args[credentialsIndex + 1];
-  }
-  
-  // Get output directory (first non-flag argument, excluding credentials file)
-  // Skip arguments that are flags (start with --) or follow the --google-sheets-credentials flag
-  let outputDir = './data';
-  for (let i = 0; i < args.length; i++) {
-    const arg = args[i];
-    // Skip flags and their values
-    if (arg.startsWith('--')) {
-      // If this is --google-sheets-credentials, skip the next arg too (the file path)
-      if (arg === '--google-sheets-credentials') {
-        i++; // Skip the next argument (credentials file path)
-      }
-      continue;
-    }
-    // First non-flag argument is the output directory
-    outputDir = arg;
-    break;
-  }
-  
+  const { options, outputDir } = parseCliArgs(process.argv.slice(2));
+
   exportBuildCraftingData(outputDir, options).catch(error => {
     console.error('Export failed:', error.message);
     process.exit(1);
   });
 }
 
-module.exports = { exportBuildCraftingData };
+/**
+ * Parse CLI arguments into export options + output directory.
+ *
+ * Rules:
+ * - `--json-only` / `--csv-only` / `--excel-only` / `--google-sheets-only` select a single format.
+ * - `--excel`, `--excel-master` (alias `--excel-compendium`), `--google-sheets` are additive
+ *   and can be combined freely (fixes the old bug where `--excel --excel-master` only enabled one).
+ * - `--no-cache` disables the on-disk manifest cache.
+ * - The first non-flag argument is the output directory.
+ * @param {string[]} args - process.argv.slice(2)
+ * @returns {{options: object, outputDir: string}}
+ */
+function parseCliArgs(args) {
+  const options = { json: true, csv: true, excel: false, excelMaster: false, googleSheets: false, cache: true };
+
+  const onlyFlags = {
+    '--json-only': 'json',
+    '--csv-only': 'csv',
+    '--excel-only': 'excel',
+    '--google-sheets-only': 'googleSheets',
+  };
+
+  let outputDir = './data';
+  let outputDirSet = false;
+
+  for (let i = 0; i < args.length; i++) {
+    const arg = args[i];
+    if (onlyFlags[arg]) {
+      options.json = false;
+      options.csv = false;
+      options.excel = false;
+      options.excelMaster = false;
+      options.googleSheets = false;
+      options[onlyFlags[arg]] = true;
+    } else if (arg === '--excel') {
+      options.excel = true;
+    } else if (arg === '--excel-master' || arg === '--excel-compendium') {
+      options.excelMaster = true;
+    } else if (arg === '--google-sheets') {
+      options.googleSheets = true;
+    } else if (arg === '--no-cache') {
+      options.cache = false;
+    } else if (arg === '--google-sheets-credentials') {
+      if (args[i + 1]) {
+        options.googleSheetsCredentials = args[i + 1];
+        i++; // Skip the credentials path value
+      }
+    } else if (!arg.startsWith('--') && !outputDirSet) {
+      outputDir = arg;
+      outputDirSet = true;
+    }
+  }
+
+  // Backwards compatibility: bare `--excel-master`/`--excel-only`/`--google-sheets`
+  // used to disable JSON+CSV when used alone. Keep JSON+CSV on by default only when
+  // no exclusive "-only" flag was passed; `--excel-master` alone previously disabled
+  // them, so preserve that behavior when it's the sole format flag.
+  if (options.excelMaster && !options.excel && !args.some(a => onlyFlags[a]) &&
+      !args.includes('--json') && !args.includes('--csv') &&
+      args.filter(a => a.startsWith('--')).every(a =>
+        ['--excel-master', '--excel-compendium', '--no-cache'].includes(a))) {
+    options.json = false;
+    options.csv = false;
+  }
+
+  return { options, outputDir };
+}
+
+module.exports = { exportBuildCraftingData, parseCliArgs };

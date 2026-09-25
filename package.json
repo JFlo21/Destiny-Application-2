@@ -12,7 +12,10 @@
     "export:excel-master": "node src/exportData.js ./data --excel-master",
     "export:google-sheets": "node src/exportData.js ./data --google-sheets",
     "export:all": "node src/exportData.js ./data --excel --excel-master",
-    "test": "node test/buildCrafting.test.js && node test/csvExport.test.js"
+    "test": "node test/buildCrafting.test.js && node test/csvExport.test.js && node --test test/unit/*.test.js",
+    "test:unit": "node --test test/unit/*.test.js",
+    "lint": "eslint .",
+    "format": "prettier --write \"src/**/*.js\" \"test/**/*.js\""
   },
   "keywords": [
     "destiny2",
@@ -28,5 +31,13 @@
     "googleapis": "^166.0.0",
     "json-2-csv": "^5.5.10",
     "node-fetch": "^2.7.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "eslint": "^10.11.0",
+    "prettier": "^3.9.9"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }

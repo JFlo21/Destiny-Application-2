@@ -163,19 +163,78 @@ Exported files include:
 - `champion-mods.csv/xlsx/json` - Champion mods (anti-barrier, overload, unstoppable) from current season
 - `enemy-weaknesses.csv/xlsx/json` - Enemy faction shield types and elemental weaknesses
 - `subclasses.csv/xlsx` - All subclass items
-- `destiny2-build-data-master.xlsx` - Master Excel file with all categories in separate worksheets
+- `destiny2-buildcraft-compendium.xlsx` - **The Buildcraft Compendium** master workbook (see below)
+- `destiny2-build-data-master.xlsx` - Copy of the compendium kept under the legacy filename
 
-#### Excel Export Features
+## The Buildcraft Compendium Workbook
 
-The Excel export includes additional features:
-- **Summary Sheet**: First worksheet showing counts for all data categories (weapons, armor, mods, etc.)
-- **Stat Reference Sheet**: Second worksheet explains what each stat does (e.g., "Resilience increases maximum health and shield capacity")
-- **Multiple worksheets**: Each category gets its own worksheet in the master file
-- **Formatted headers**: Bold headers with background color
-- **Auto-filters**: Enable easy filtering and sorting
-- **Frozen header row**: Headers stay visible when scrolling
-- **Optimized column widths**: Columns are automatically sized for readability
-- **Individual stat columns**: Abilities, aspects, and fragments show stats as separate columns instead of concatenated strings
+> 📸 *Screenshots coming soon.*
+
+The master Excel export (`--excel-master` / `--excel-compendium`) produces a
+Destiny 2 Data Compendium-style workbook: every data sheet is a real Excel
+Table with a themed header, frozen panes, typed cells, conditional formatting
+and hyperlinks.
+
+> ⚠️ **Excel 365 required for the Build Planner** — its formulas use
+> `XLOOKUP`, which is unavailable in older Excel versions. All other sheets
+> work anywhere .xlsx files open.
+
+### Workbook tour
+
+| Tab | Group | What it contains |
+|---|---|---|
+| **Cover** | — | Title, season, manifest version, export date, color legend, hyperlinked table of contents |
+| **Build Planner** | Planner | Interactive build sheet with dropdowns and live formulas (see below) |
+| **Fragment Matrix** | Mechanics | Fragments × armor stats grid with signed green/red deltas and verbs granted |
+| **Champion Counters** | Mechanics | Which subclass verbs stun Barrier / Overload / Unstoppable champions |
+| **Subclass Verbs** | Mechanics | Curated glossary of every subclass verb (Jolt, Scorch, Volatile, …) with PvE/PvP notes |
+| **Stat Tiers** | Mechanics | Armor stat tier breakpoints (community-sourced, `verified` flag) |
+| **Stacking Rules** | Mechanics | Buff/debuff stacking behavior (empowering buffs, global debuffs, surges) |
+| **Stat Reference** | Reference | What every stat does |
+| **Weapons / Armor / …** | Catalog | Full item catalogs as filterable tables with stat color scales |
+| **Weapon Perk Pools** | Catalog | Every weapon's possible random-roll perks per column |
+| **Exotic Armor** | Catalog | Exotic armor with class, slot and intrinsic perk description |
+| **Item_Stats / Item_Perks** | Reference | Normalized long-format data for pivot tables and lookups |
+| **Lookups** | Reference | Dropdown source lists (supers, grenades, melees, class abilities) |
+
+Each entry on mechanics sheets carries a `Source` column (`API` or `Curated`).
+
+### Using the Build Planner
+
+1. Pick your **Class**, **Subclass**, **Super/Grenade/Melee/Class Ability**,
+   **Aspects**, up to six **Fragments**, **Exotic Armor** and **Weapons** from
+   the dropdowns. Descriptions appear beside each pick via `XLOOKUP`.
+2. Enter your **base armor stats** in the six numeric input cells.
+3. Add up to 5 **armor mods** per armor slot — energy used per piece is summed
+   and turns red when it exceeds 10.
+4. Read the outputs: fragment slots available vs used, per-stat fragment
+   deltas, final stats and tiers (`=INT(stat/10)`), champion coverage
+   (Barrier/Overload/Unstoppable ✔), and an element synergy warning when your
+   weapon element doesn't match your subclass (non-Prismatic).
+
+### Contributing curated data
+
+The mechanics sheets are driven by reviewable JSON files in `data/curated/`:
+`subclassVerbs.json`, `armorStatTiers.json`, `championCounters.json`,
+`stackingRules.json`. To contribute:
+
+1. Edit the relevant file, keeping the existing fields (each entry needs a
+   `source` field; use `verified: true` only for values you have tested).
+2. Run `npm test` — curated files are schema-validated by the test suite.
+3. Open a pull request describing your source (patch notes, testing, etc.).
+
+## CLI flags
+
+`node src/exportData.js [outputDir] [flags]`
+
+| Flag | Effect |
+|---|---|
+| `--csv-only` / `--json-only` / `--excel-only` | Export a single format |
+| `--excel` | Also export per-category .xlsx files |
+| `--excel-master` / `--excel-compendium` | Build the compendium workbook (flags combine freely with `--excel`) |
+| `--google-sheets` | Also export to Google Sheets |
+| `--google-sheets-credentials <file>` | Path to service account credentials |
+| `--no-cache` | Skip the on-disk manifest cache in `.cache/` |
 
 #### Google Sheets Export
 
@@ -339,7 +398,7 @@ BUNGIE_API_KEY=your_api_key npm test
 
 ## Requirements
 
-- Node.js 14 or later (Node.js 18+ recommended)
+- Node.js 18 or later (Node.js 20 recommended — see `.nvmrc`)
 
 ## License
 

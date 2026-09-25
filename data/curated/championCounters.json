@@ -1,0 +1,19 @@
+{
+  "$comment": "Champion stun-type counters: which subclass verbs stun each champion type, in addition to seasonal artifact mods and intrinsic breaker-type weapons.",
+  "version": 1,
+  "entries": [
+    { "championType": "Barrier", "stunMethod": "Radiant", "methodType": "verb", "element": "Solar", "notes": "While Radiant, all your weapons pierce Barrier Champion shields.", "source": "Curated" },
+    { "championType": "Barrier", "stunMethod": "Volatile", "methodType": "verb", "element": "Void", "notes": "Volatile rounds pierce Barrier Champion shields.", "source": "Curated" },
+    { "championType": "Barrier", "stunMethod": "Unravel", "methodType": "verb", "element": "Strand", "notes": "Unraveling rounds pierce Barrier Champion shields.", "source": "Curated" },
+    { "championType": "Overload", "stunMethod": "Jolt", "methodType": "verb", "element": "Arc", "notes": "Jolting an Overload Champion stuns it.", "source": "Curated" },
+    { "championType": "Overload", "stunMethod": "Suppress", "methodType": "verb", "element": "Void", "notes": "Suppressing an Overload Champion stuns it.", "source": "Curated" },
+    { "championType": "Overload", "stunMethod": "Slow", "methodType": "verb", "element": "Stasis", "notes": "Slowing an Overload Champion interrupts and stuns it.", "source": "Curated" },
+    { "championType": "Unstoppable", "stunMethod": "Ignition", "methodType": "verb", "element": "Solar", "notes": "An Ignition staggers an Unstoppable Champion.", "source": "Curated" },
+    { "championType": "Unstoppable", "stunMethod": "Suspend", "methodType": "verb", "element": "Strand", "notes": "Suspending an Unstoppable Champion stuns it.", "source": "Curated" },
+    { "championType": "Unstoppable", "stunMethod": "Blind", "methodType": "verb", "element": "Arc", "notes": "Blinding an Unstoppable Champion staggers it.", "source": "Curated" },
+    { "championType": "Unstoppable", "stunMethod": "Shatter", "methodType": "verb", "element": "Stasis", "notes": "Freezing then Shattering an Unstoppable Champion stuns it.", "source": "Curated" },
+    { "championType": "Barrier", "stunMethod": "Anti-Barrier weapon (breakerType 1)", "methodType": "weapon", "element": "Any", "notes": "Weapons with intrinsic Shield-Piercing or the seasonal artifact anti-barrier perk.", "source": "Curated" },
+    { "championType": "Overload", "stunMethod": "Overload weapon (breakerType 2)", "methodType": "weapon", "element": "Any", "notes": "Weapons with intrinsic Disruption or the seasonal artifact overload perk.", "source": "Curated" },
+    { "championType": "Unstoppable", "stunMethod": "Unstoppable weapon (breakerType 3)", "methodType": "weapon", "element": "Any", "notes": "Weapons with intrinsic Stagger or the seasonal artifact unstoppable perk.", "source": "Curated" }
+  ]
+}

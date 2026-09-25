@@ -1,7 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { exportToCSV, transformItemsForCSV } = require('../src/csvExport');
+const { exportToCSV } = require('../src/csvExport');
 
 /**
  * Integration test to verify CSV export with realistic mock data

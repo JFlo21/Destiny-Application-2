@@ -99,7 +99,6 @@ async function createBuildCraftingSheet(sheets, title, buildData, statDefs = nul
     
     // First, rename the default sheet and add other sheets
     const requests = [];
-    let actualSheetIndex = 0;
     
     // Filter worksheets with data and assign sheet IDs
     const validWorksheets = worksheets

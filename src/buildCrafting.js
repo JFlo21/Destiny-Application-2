@@ -634,13 +634,14 @@ function collectArtifactPlugHashes(artifactDef) {
 /**
  * Pure current-season selection for seasonal mods (artifact/champion).
  *
- * Selection order (first non-empty result wins):
- * 1. Items whose seasonHash matches the current season.
- * 2. Items that appear on the current seasonal artifact — manifest plugs
- *    frequently lack a seasonHash, so artifact membership is the
- *    authoritative signal.
- * 3. Last resort: all items, each flagged isCurrentSeason=false so consumers
- *    can see nothing could be verified as current.
+ * Two signals identify a current-season mod, and their UNION is returned so
+ * neither can shadow the other:
+ * - seasonHash matches the current season, OR
+ * - the item appears on the current seasonal artifact (manifest plugs
+ *   frequently lack a seasonHash, so artifact membership is authoritative).
+ * Last resort: if neither signal matches anything, all items are returned
+ * flagged isCurrentSeason=false so consumers can see nothing could be
+ * verified as current.
  * @param {object[]} items - Usable candidate mods
  * @param {number|null} seasonHash - Current season hash
  * @param {Set<number>} artifactPlugHashes - Hashes on the current artifact
@@ -648,17 +649,14 @@ function collectArtifactPlugHashes(artifactDef) {
  * @returns {object[]} - Mods flagged with isCurrentSeason
  */
 function selectCurrentSeasonMods(items, seasonHash, artifactPlugHashes, label = 'mods') {
-  const bySeasonHash = filterByCurrentSeason(items, seasonHash);
-  if (bySeasonHash.length > 0) {
-    return bySeasonHash.map(item => ({ ...item, isCurrentSeason: true }));
-  }
-
-  if (artifactPlugHashes && artifactPlugHashes.size > 0) {
-    const onCurrentArtifact = items.filter(item => artifactPlugHashes.has(item.hash));
-    if (onCurrentArtifact.length > 0) {
-      console.log(`Filtered ${label} to ${onCurrentArtifact.length} plugs on the current seasonal artifact`);
-      return onCurrentArtifact.map(item => ({ ...item, isCurrentSeason: true }));
-    }
+  const currentSeasonMods = items.filter(
+    item =>
+      (item.seasonHash && item.seasonHash === seasonHash) ||
+      (artifactPlugHashes && artifactPlugHashes.has(item.hash))
+  );
+  if (currentSeasonMods.length > 0) {
+    console.log(`Filtered ${label} to ${currentSeasonMods.length} current-season entries (seasonHash or current artifact)`);
+    return currentSeasonMods.map(item => ({ ...item, isCurrentSeason: true }));
   }
 
   console.log(`No ${label} matched the current season; including all with isCurrentSeason=false flag`);

@@ -46,6 +46,18 @@ test('artifact membership filters unstamped plugs when no seasonHash matches', (
   assert.ok(result.every((m) => m.isCurrentSeason === true));
 });
 
+test('seasonHash matches and unstamped current-artifact plugs are unioned', () => {
+  // currentMod is stamped with the season hash; unstampedCurrent has no
+  // seasonHash but is on the current artifact — BOTH must be exported
+  const result = selectCurrentSeasonMods(
+    [currentMod, unstampedCurrent, unstampedOld, oldMod],
+    SEASON,
+    new Set([3])
+  );
+  assert.deepStrictEqual(result.map((m) => m.hash).sort(), [1, 3]);
+  assert.ok(result.every((m) => m.isCurrentSeason === true));
+});
+
 test('last resort returns all items flagged isCurrentSeason=false', () => {
   const result = selectCurrentSeasonMods([unstampedCurrent, unstampedOld], SEASON, new Set());
   assert.strictEqual(result.length, 2);
